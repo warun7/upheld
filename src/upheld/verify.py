@@ -1,9 +1,8 @@
 """Verifiers decide whether evidence passages support claims in an answer.
 
 They are swappable on purpose: measured citation accuracy depends heavily on
-the verifier (see problem-research.md, section 4), so every report names the
-verifier and threshold it used, and `upheld eval` compares them on the
-same labeled data.
+the verifier, so every report names the verifier and threshold it used, and
+`upheld eval` compares them on the same labeled data.
 
 Verifiers see the whole answer, not just one claim: LettuceDetect was trained
 on full RAG responses and misjudges sentences scored in isolation.

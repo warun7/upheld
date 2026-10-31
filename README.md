@@ -2,7 +2,7 @@
 
 Checks whether an AI answer's citations actually support its claims.
 
-AI search tools and deep-research agents now mostly cite real, working links, but the cited page often doesn't say what the answer claims: one 2026 study of 14 models found only 39–77% of cited facts were actually in the source. Link checkers can't see it. upheld splits an answer into claims, finds the relevant passage in each cited source, and says which claims the sources really back. See [problem-research.md](problem-research.md) for the evidence.
+AI search tools and deep-research agents now mostly cite real, working links, but the cited page often doesn't say what the answer claims: [one 2026 study](https://arxiv.org/abs/2605.06635) of 14 models found only 39–77% of cited facts were actually in the source. Link checkers can't see it. upheld splits an answer into claims, finds the relevant passage in each cited source, and says which claims the sources really back.
 
 ## How it's meant to be used
 

@@ -11,3 +11,10 @@ evals/fresh/raw/
 
 # Personal notes, not for the public repo
 research-mentors.md
+competitor-research.md
+problem-research.md
+
+# Website
+web/node_modules/
+web/dist/
+.claude/
