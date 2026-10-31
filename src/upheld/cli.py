@@ -102,7 +102,7 @@ def serve(
     verifier: VerifierOpt = "ensemble",
     retrieval: RetrievalOpt = "auto",
 ) -> None:
-    """Run the HTTP API."""
+    """Run the HTTP API, plus the website and playground when web/dist is built."""
     import os
 
     import uvicorn

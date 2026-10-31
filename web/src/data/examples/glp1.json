@@ -1,0 +1,183 @@
+{
+ "id": "glp1",
+ "title": "GLP-1 trials",
+ "blurb": "Pasted trial summaries. Shows a claim pinned on the wrong drug, and two true claims upheld wrongly flags.",
+ "question": "How much weight do people lose on Ozempic?",
+ "answer": "In a 68-week trial, semaglutide led to an average weight loss of 14.9% [1]. In a 72-week trial, Ozempic produced average weight loss of 20.9% [2]. Participants on placebo lost about 2.4% of body weight [1]. Most participants on semaglutide reported no gastrointestinal side effects [1].",
+ "sources": [
+  {
+   "id": "1",
+   "title": "STEP 1 trial (illustrative summary)",
+   "text": "In the STEP 1 trial, 1,961 adults with a body-mass index of 30 or greater, or 27 or greater with at least one weight-related condition, were randomly assigned to once-weekly subcutaneous semaglutide 2.4 mg or placebo, plus lifestyle intervention, for 68 weeks. The mean change in body weight from baseline to week 68 was -14.9% in the semaglutide group as compared with -2.4% with placebo. Nausea and diarrhea were the most common adverse events with semaglutide; gastrointestinal events were typically transient and mild to moderate in severity."
+  },
+  {
+   "id": "2",
+   "title": "SURMOUNT-1 trial (illustrative summary)",
+   "text": "In the SURMOUNT-1 trial, 2,539 adults with obesity were randomly assigned to once-weekly tirzepatide at 5 mg, 10 mg, or 15 mg, or placebo, for 72 weeks. The mean percentage change in weight at week 72 was -15.0% with 5 mg, -19.5% with 10 mg, and -20.9% with 15 mg of tirzepatide, compared with -3.1% with placebo."
+  }
+ ],
+ "report": {
+  "verifier": "ensemble:minicheck+lexical+lettuce@0.5",
+  "retrieval": "hybrid:bm25+bge-small-en-v1.5",
+  "summary": {
+   "claims": 4,
+   "cited_claims": 4,
+   "supported_claims": 0,
+   "citations_checked": 4,
+   "citation_verdicts": {
+    "unsupported": 4
+   },
+   "claim_verdicts": {
+    "unsupported": 4
+   }
+  },
+  "claims": [
+   {
+    "index": 0,
+    "text": "In a 68-week trial, semaglutide led to an average weight loss of 14.9%.",
+    "start": 0,
+    "end": 75,
+    "cited": [
+     "1"
+    ],
+    "verdict": "unsupported",
+    "checks": [
+     {
+      "source_id": "1",
+      "verdict": "unsupported",
+      "support_score": 0.416,
+      "unsupported_spans": [],
+      "missing_entities": [],
+      "evidence": [
+       {
+        "source_id": "1",
+        "passage": "In the STEP 1 trial, 1,961 adults with a body-mass index of 30 or greater, or 27 or greater with at least one weight-related condition, were randomly assigned to once-weekly subcutaneous semaglutide 2.4 mg or placebo, plus lifestyle intervention, for 68 weeks. The mean change in body weight from baseline to week 68 was -14.9% in the semaglutide group as compared with -2.4% with placebo. Nausea and diarrhea were the most common adverse events with semaglutide; gastrointestinal events were typically transient and mild to moderate in severity.",
+        "score": 1.0
+       }
+      ],
+      "note": null
+     }
+    ],
+    "note": null
+   },
+   {
+    "index": 1,
+    "text": "In a 72-week trial, Ozempic produced average weight loss of 20.9%.",
+    "start": 76,
+    "end": 146,
+    "cited": [
+     "2"
+    ],
+    "verdict": "unsupported",
+    "checks": [
+     {
+      "source_id": "2",
+      "verdict": "unsupported",
+      "support_score": 0.285,
+      "unsupported_spans": [
+       {
+        "start": 0,
+        "end": 64,
+        "text": "In a 72-week trial, Ozempic produced average weight loss of 20.9",
+        "confidence": 0.99
+       }
+      ],
+      "missing_entities": [
+       "Ozempic"
+      ],
+      "evidence": [
+       {
+        "source_id": "2",
+        "passage": "In the SURMOUNT-1 trial, 2,539 adults with obesity were randomly assigned to once-weekly tirzepatide at 5 mg, 10 mg, or 15 mg, or placebo, for 72 weeks. The mean percentage change in weight at week 72 was -15.0% with 5 mg, -19.5% with 10 mg, and -20.9% with 15 mg of tirzepatide, compared with -3.1% with placebo.",
+        "score": 1.0
+       }
+      ],
+      "note": null
+     }
+    ],
+    "note": null
+   },
+   {
+    "index": 2,
+    "text": "Participants on placebo lost about 2.4% of body weight.",
+    "start": 147,
+    "end": 206,
+    "cited": [
+     "1"
+    ],
+    "verdict": "unsupported",
+    "checks": [
+     {
+      "source_id": "1",
+      "verdict": "unsupported",
+      "support_score": 0.468,
+      "unsupported_spans": [],
+      "missing_entities": [],
+      "evidence": [
+       {
+        "source_id": "1",
+        "passage": "In the STEP 1 trial, 1,961 adults with a body-mass index of 30 or greater, or 27 or greater with at least one weight-related condition, were randomly assigned to once-weekly subcutaneous semaglutide 2.4 mg or placebo, plus lifestyle intervention, for 68 weeks. The mean change in body weight from baseline to week 68 was -14.9% in the semaglutide group as compared with -2.4% with placebo. Nausea and diarrhea were the most common adverse events with semaglutide; gastrointestinal events were typically transient and mild to moderate in severity.",
+        "score": 1.0
+       }
+      ],
+      "note": null
+     }
+    ],
+    "note": null
+   },
+   {
+    "index": 3,
+    "text": "Most participants on semaglutide reported no gastrointestinal side effects.",
+    "start": 207,
+    "end": 286,
+    "cited": [
+     "1"
+    ],
+    "verdict": "unsupported",
+    "checks": [
+     {
+      "source_id": "1",
+      "verdict": "unsupported",
+      "support_score": 0.257,
+      "unsupported_spans": [
+       {
+        "start": 0,
+        "end": 74,
+        "text": "Most participants on semaglutide reported no gastrointestinal side effects",
+        "confidence": 0.979
+       }
+      ],
+      "missing_entities": [],
+      "evidence": [
+       {
+        "source_id": "1",
+        "passage": "In the STEP 1 trial, 1,961 adults with a body-mass index of 30 or greater, or 27 or greater with at least one weight-related condition, were randomly assigned to once-weekly subcutaneous semaglutide 2.4 mg or placebo, plus lifestyle intervention, for 68 weeks. The mean change in body weight from baseline to week 68 was -14.9% in the semaglutide group as compared with -2.4% with placebo. Nausea and diarrhea were the most common adverse events with semaglutide; gastrointestinal events were typically transient and mild to moderate in severity.",
+        "score": 1.0
+       }
+      ],
+      "note": null
+     }
+    ],
+    "note": null
+   }
+  ],
+  "sources": [
+   {
+    "id": "1",
+    "url": null,
+    "status": "provided",
+    "http_status": null,
+    "chars": 546,
+    "note": null
+   },
+   {
+    "id": "2",
+    "url": null,
+    "status": "provided",
+    "http_status": null,
+    "chars": 313,
+    "note": null
+   }
+  ]
+ }
+}

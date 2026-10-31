@@ -12,7 +12,7 @@ One engine, several ways in. They all call the same `run_audit()`.
 |---|---|---|
 | **Python library + CLI** | Developers checking answers locally. Runs on a laptop (CPU, Apple or NVIDIA GPU), no API key, nothing leaves your machine except fetching the cited pages. | Working |
 | **HTTP API** (`upheld serve`) | RAG builders: audit your pipeline's outputs in CI or as a guardrail before showing an answer. Also the reward server for phase 2. | Working |
-| **Web app** | Anyone: paste an answer from Perplexity/ChatGPT/Gemini with its sources and see each claim highlighted. The public demo. | Next |
+| **Website + playground** (`web/`) | Anyone: paste an answer from Perplexity/ChatGPT/Gemini with its sources and see each claim highlighted. `upheld serve` hosts it next to the API. See [web/README.md](web/README.md). | Working, not yet deployed |
 | **Browser extension** | Overlays verdicts directly on AI search answers. Calls the hosted API. Most visible, but brittle (each site's page structure changes). | Later |
 
 ## What it reports
@@ -40,6 +40,7 @@ uv run upheld audit examples/eiffel.md             # markdown answer with a refe
 uv run upheld audit examples/eiffel.md --json      # full report
 uv run upheld eval evals/smoke.jsonl               # verifier vs labels, with a threshold sweep
 uv run upheld serve                                # POST /audit on http://127.0.0.1:8000
+(cd web && npm ci && npm run build)                # optional: then `upheld serve` also hosts the site at /
 uv run pytest
 ```
 
@@ -144,6 +145,8 @@ The output, `scoreboard.md`, answers both "how often do each tool's citations ho
 
 - **One-step inferences fail.** In `examples/glp1.json` the source reports "the mean change in body weight ... was -14.9%" and the answer says "an average weight loss of 14.9%". MiniCheck scores that 0.08 and the claim is marked unsupported, as is the matching placebo claim. Likewise `examples/eiffel.md` marks the true claim "intended to stand for only 20 years" unsupported (0.46): retrieval finds "slated for dismantling in 1909", but nothing connects that to 20 years. An LLM judge for uncertain claims is the planned fix.
 - **Wrong-party claims slip through** about two times in three when the wrong name is also in the source (see [Edited claims](#edited-claims)).
+- **Contradictions in the source's own words can pass.** "The Great Wall of China is visible from the Moon with the naked eye", cited to its Wikipedia article, scores 0.59 and is marked supported, though the retrieved passage says it cannot be seen. MiniCheck alone gets it right (0.08); word overlap and LettuceDetect both give 1.0 and outvote it.
+- **Numbers are matched as digits, not quantities.** "It stands 410 metres tall" passes against the Eiffel Tower article (0.77) because the page gives the base as 410 ft.
 - **ExpertQA-style claims** (long, technical, expert-written) score 57.8 macro-F1, so expect more mistakes on specialist content.
 - **Entity check is a heuristic** (capitalized phrases + word frequency), not NER. It false-alarms on names the source writes differently and misses lowercase entities.
 - **Speed.** The ensemble takes roughly 0.3–1 s per claim per source on an Apple M5 Pro and is several times slower on CPU. MiniCheck dominates. `--verifier lexical` is instant but much weaker.
@@ -159,10 +162,10 @@ The output, `scoreboard.md`, answers both "how often do each tool's citations ho
 - ~~Stronger verifier, threshold calibrated on a held-out split~~ done: MiniCheck + ensemble, 64.4 → 74.4 ID macro-F1
 - ~~Edited-claim tests for each failure type~~ done
 - **Run the fresh 2026 benchmark.** The tooling is built; it needs API keys for the four providers and a few hours of labeling.
-- **Close the gap on hard claims**: an LLM judge for claims the ensemble is unsure about, or fine-tuning MiniCheck on AttributionBench's train split (the paper's best fine-tuned model reaches 78.5 ID). Targets: ExpertQA, wrong-party swaps, one-step inferences.
+- **Close the gap on hard claims**: an LLM judge for claims the ensemble is unsure about, or fine-tuning MiniCheck on AttributionBench's train split (the paper's best fine-tuned model reaches 78.5 ID). Targets: ExpertQA, wrong-party swaps, one-step inferences, and contradictions the ensemble outvotes MiniCheck on.
 - Speed: MiniCheck in bf16, and batching claims across sources
 - PDF sources
-- Web app and hosted API; browser extension after that
+- ~~Web app~~ done: landing page and playground in `web/`. Next: deploy it with the hosted API, then a browser extension
 
 **Phase 2: train a search agent to cite honestly**
 - Qwen3-4B + LoRA, GRPO, BM25 over Wikipedia, NQ + HotpotQA
