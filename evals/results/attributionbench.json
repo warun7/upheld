@@ -1,0 +1,158 @@
+{
+  "systems": {
+    "lettuce": {
+      "dev_threshold": 0.88,
+      "id": {
+        "AttributedQA": 72.1,
+        "ExpertQA": 57.8,
+        "LFQA": 70.9,
+        "Stanford-GenSearch": 68.3,
+        "avg": 67.3,
+        "avg_at_default": 64.4
+      },
+      "ood": {
+        "AttrScore-GenSearch": 67.2,
+        "BEGIN": 79.8,
+        "HAGRID": 75.4,
+        "avg": 74.1,
+        "avg_at_default": 72.8
+      }
+    },
+    "lettuce+entity": {
+      "dev_threshold": 0.78,
+      "id": {
+        "AttributedQA": 73.9,
+        "ExpertQA": 55.8,
+        "LFQA": 69.9,
+        "Stanford-GenSearch": 66.6,
+        "avg": 66.5
+      },
+      "ood": {
+        "AttrScore-GenSearch": 72.7,
+        "BEGIN": 78.7,
+        "HAGRID": 76.5,
+        "avg": 76.0
+      }
+    },
+    "lexical": {
+      "dev_threshold": 0.56,
+      "id": {
+        "AttributedQA": 67.8,
+        "ExpertQA": 53.2,
+        "LFQA": 80.8,
+        "Stanford-GenSearch": 68.6,
+        "avg": 67.6,
+        "avg_at_default": 64.2
+      },
+      "ood": {
+        "AttrScore-GenSearch": 76.5,
+        "BEGIN": 89.2,
+        "HAGRID": 79.4,
+        "avg": 81.7,
+        "avg_at_default": 80.6
+      }
+    },
+    "lexical+entity": {
+      "dev_threshold": 0.56,
+      "id": {
+        "AttributedQA": 73.1,
+        "ExpertQA": 51.9,
+        "LFQA": 80.2,
+        "Stanford-GenSearch": 68.7,
+        "avg": 68.5
+      },
+      "ood": {
+        "AttrScore-GenSearch": 74.4,
+        "BEGIN": 89.0,
+        "HAGRID": 77.8,
+        "avg": 80.4
+      }
+    },
+    "minicheck": {
+      "dev_threshold": 0.23,
+      "id": {
+        "AttributedQA": 81.2,
+        "ExpertQA": 58.9,
+        "LFQA": 83.9,
+        "Stanford-GenSearch": 71.5,
+        "avg": 73.9,
+        "avg_at_default": 73.3
+      },
+      "ood": {
+        "AttrScore-GenSearch": 77.9,
+        "BEGIN": 84.3,
+        "HAGRID": 75.7,
+        "avg": 79.3,
+        "avg_at_default": 79.6
+      }
+    },
+    "minicheck+entity": {
+      "dev_threshold": 0.23,
+      "id": {
+        "AttributedQA": 78.7,
+        "ExpertQA": 56.8,
+        "LFQA": 82.7,
+        "Stanford-GenSearch": 68.6,
+        "avg": 71.7
+      },
+      "ood": {
+        "AttrScore-GenSearch": 74.2,
+        "BEGIN": 84.1,
+        "HAGRID": 76.4,
+        "avg": 78.2
+      }
+    },
+    "ensemble": {
+      "dev_threshold": 0.5,
+      "id": {
+        "AttributedQA": 82.9,
+        "ExpertQA": 57.8,
+        "LFQA": 85.0,
+        "Stanford-GenSearch": 71.8,
+        "avg": 74.4
+      },
+      "ood": {
+        "AttrScore-GenSearch": 79.0,
+        "BEGIN": 90.8,
+        "HAGRID": 79.6,
+        "avg": 83.1
+      }
+    },
+    "ensemble+entity": {
+      "dev_threshold": 0.5,
+      "id": {
+        "AttributedQA": 80.4,
+        "ExpertQA": 55.2,
+        "LFQA": 83.8,
+        "Stanford-GenSearch": 69.5,
+        "avg": 72.2
+      },
+      "ood": {
+        "AttrScore-GenSearch": 74.0,
+        "BEGIN": 90.1,
+        "HAGRID": 78.5,
+        "avg": 80.9
+      }
+    }
+  },
+  "seconds_per_example": {
+    "lettuce": {
+      "train": 0.223,
+      "dev": 0.189,
+      "id": 0.213,
+      "ood": 0.117
+    },
+    "lexical": {
+      "train": 0.0,
+      "dev": 0.0,
+      "id": 0.0,
+      "ood": 0.0
+    },
+    "minicheck": {
+      "train": 0.872,
+      "dev": 0.143,
+      "id": 0.692,
+      "ood": 0.911
+    }
+  }
+}

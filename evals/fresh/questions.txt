@@ -1,0 +1,61 @@
+# Questions for the fresh benchmark. One per line; lines starting with # are skipped.
+# Mix: health/science (precise numbers), tech, finance, history, policy, sports, and
+# questions whose answers changed recently, where stale or misattributed citations are likely.
+# health and medicine
+How much weight did participants lose on tirzepatide in the SURMOUNT-1 trial, and over how long?
+What are the main side effects reported for semaglutide in clinical trials?
+What does the current evidence say about intermittent fasting compared with daily calorie restriction for weight loss?
+How effective is the RSV vaccine for adults over 60 according to the trial data?
+What is the recommended daily sodium intake for adults according to the WHO, and how much do people actually consume?
+What did the large trials find about low-dose aspirin for primary prevention of heart attacks in older adults?
+How common is long COVID, and what are its most frequently reported symptoms?
+What is lecanemab, and how much did it slow cognitive decline in its phase 3 trial?
+# science and climate
+How much has global average temperature risen since pre-industrial times, and what was the warmest year on record?
+What did the James Webb Space Telescope find about the atmosphere of exoplanet K2-18 b?
+How much of the Great Barrier Reef was affected by the most recent mass bleaching event?
+What is the current concentration of CO2 in the atmosphere and how fast is it rising?
+What happened during the first crewed flight test of Boeing's Starliner?
+How much electricity does training and running large AI models use compared with other data center workloads?
+What is the status of the ITER fusion project and when is first plasma now expected?
+# technology
+What are the main differences between the EU AI Act's risk categories?
+What did the US Department of Justice argue in its antitrust case against Google search, and what did the court decide?
+How many people use ChatGPT weekly according to OpenAI's most recent figures?
+What is the market share of Android versus iOS worldwide and in the United States?
+What happened in the CrowdStrike outage of July 2024 and how many devices were affected?
+What are the key specifications of Apple's M5 chip?
+How does Perplexity cite sources in its answers, and has it faced lawsuits from publishers?
+What is retrieval-augmented generation and what are its main failure modes?
+# finance and economics
+What was the US inflation rate for the most recent month reported, and how does it compare with a year earlier?
+How did the Federal Reserve change interest rates over the past year?
+What is Nvidia's most recent quarterly revenue and how much came from data centers?
+What caused the collapse of Silicon Valley Bank in 2023?
+How large is the global market for GLP-1 weight-loss drugs and which companies dominate it?
+What is the current US national debt and how much does the government spend on interest?
+# history and culture
+Why was the Eiffel Tower built and was it meant to be permanent?
+What were the main causes of the fall of the Western Roman Empire according to historians?
+Who designed the Statue of Liberty and how was it shipped to the United States?
+What were the outcomes of the Treaty of Versailles for Germany?
+How many people died in the 1918 influenza pandemic, and why do estimates vary so much?
+Which films won the most Academy Awards at the most recent ceremony?
+# policy and law
+What does the Inflation Reduction Act do to Medicare drug pricing?
+What are the main provisions of the UK Online Safety Act?
+What did the Supreme Court decide in Loper Bright Enterprises v. Raimondo and why does it matter?
+How does the EU's Digital Markets Act affect Apple's App Store?
+What are the current US rules on tariffs for goods imported from China?
+# sports
+Who won the most recent FIFA Men's World Cup and who was the top scorer?
+Which country topped the medal table at the Paris 2024 Olympics?
+What records did Simone Biles set at the Paris 2024 Olympics?
+Who holds the men's marathon world record and what is the time?
+# products and consumer
+What is the real-world range of the Tesla Model 3 compared with its EPA rating?
+Which smartphone has the best camera according to recent reviews and testing?
+How much does it cost to charge an electric car at home compared with fueling a gas car?
+What are the health effects of microplastics found in drinking water?
+Is it safe to eat eggs every day according to recent nutrition research?
+How accurate are consumer smartwatches at measuring heart rate and blood oxygen?

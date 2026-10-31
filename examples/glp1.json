@@ -1,0 +1,16 @@
+{
+  "question": "How much weight do people lose on Ozempic?",
+  "answer": "In a 68-week trial, semaglutide led to an average weight loss of 14.9% [1]. In a 72-week trial, Ozempic produced average weight loss of 20.9% [2]. Participants on placebo lost about 2.4% of body weight [1]. Most participants on semaglutide reported no gastrointestinal side effects [1].",
+  "sources": [
+    {
+      "id": "1",
+      "title": "STEP 1 trial (illustrative summary)",
+      "text": "In the STEP 1 trial, 1,961 adults with a body-mass index of 30 or greater, or 27 or greater with at least one weight-related condition, were randomly assigned to once-weekly subcutaneous semaglutide 2.4 mg or placebo, plus lifestyle intervention, for 68 weeks. The mean change in body weight from baseline to week 68 was -14.9% in the semaglutide group as compared with -2.4% with placebo. Nausea and diarrhea were the most common adverse events with semaglutide; gastrointestinal events were typically transient and mild to moderate in severity."
+    },
+    {
+      "id": "2",
+      "title": "SURMOUNT-1 trial (illustrative summary)",
+      "text": "In the SURMOUNT-1 trial, 2,539 adults with obesity were randomly assigned to once-weekly tirzepatide at 5 mg, 10 mg, or 15 mg, or placebo, for 72 weeks. The mean percentage change in weight at week 72 was -15.0% with 5 mg, -19.5% with 10 mg, and -20.9% with 15 mg of tirzepatide, compared with -3.1% with placebo."
+    }
+  ]
+}

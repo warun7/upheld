@@ -1,0 +1,109 @@
+{
+  "results": {
+    "verifier": "lexical@0.56",
+    "wrong_number": {
+      "n": 82,
+      "original_pass_rate": 0.866,
+      "catch_rate": 1.0
+    },
+    "wrong_number +entity": {
+      "n": 82,
+      "original_pass_rate": 0.768,
+      "catch_rate": 1.0
+    },
+    "wrong_entity_absent": {
+      "n": 150,
+      "original_pass_rate": 0.76,
+      "catch_rate": 0.404
+    },
+    "wrong_entity_absent +entity": {
+      "n": 150,
+      "original_pass_rate": 0.693,
+      "catch_rate": 0.971
+    },
+    "wrong_entity_swap": {
+      "n": 150,
+      "original_pass_rate": 0.767,
+      "catch_rate": 0.009
+    },
+    "wrong_entity_swap +entity": {
+      "n": 150,
+      "original_pass_rate": 0.693,
+      "catch_rate": 0.01
+    },
+    "multi_source": {
+      "n": 100,
+      "joint_supported": 0.95,
+      "via_combining": 0.89,
+      "single_source_passed": 0.06
+    }
+  },
+  "examples": {
+    "wrong_number": [
+      {
+        "claim": "They run for approximately 670 km in a south-west direction, starting near Delhi and ending in Ahmedabad Gujarat.",
+        "edited": "They run for approximately 402 km in a south-west direction, starting near Delhi and ending in Ahmedabad Gujarat."
+      },
+      {
+        "claim": "Saudi National Bank acquired a stake of almost 10% last year after it took part in Credit Suisse's capital raising.",
+        "edited": "Saudi National Bank acquired a stake of almost 7% last year after it took part in Credit Suisse's capital raising."
+      },
+      {
+        "claim": "Gary Grimes starred in the movie Summer of 42.",
+        "edited": "Gary Grimes starred in the movie Summer of 25."
+      },
+      {
+        "claim": "According to a study by Sachs and Warner, developing countries with open trade policies had a growth rate of 4.5%, faster than those with protectionist and closed economy policies, which had a growth rate of only 2%.",
+        "edited": "According to a study by Sachs and Warner, developing countries with open trade policies had a growth rate of 3.1%, faster than those with protectionist and closed economy policies, which had a growth rate of only 2%."
+      },
+      {
+        "claim": "Grill tilapia on a medium-high heat for 3-4 minutes per side, and season with a spice blend of smoked paprika, garlic powder, onion powder, and celery seed.",
+        "edited": "Grill tilapia on a medium-high heat for 6-4 minutes per side, and season with a spice blend of smoked paprika, garlic powder, onion powder, and celery seed."
+      }
+    ],
+    "wrong_entity_absent": [
+      {
+        "claim": "Charles Darwin wrote the book 'The Origin of Species.'",
+        "edited": "Charles Darwin wrote the book 'The King Felipe VI.'"
+      },
+      {
+        "claim": "This was the twelfth Grey Cup win for the city of Winnipeg.",
+        "edited": "This was the twelfth Grey Cup win for the city of Eukaryotic."
+      },
+      {
+        "claim": "Acute coronary syndrome, which encompasses conditions involving ischemia or infarction such as unstable angina, non-ST segment elevation myocardial infarction, and ST segment elevation myocardial infarction (STEMI), can be detected using an ECG.",
+        "edited": "Acute coronary syndrome, which encompasses conditions involving ischemia or infarction such as unstable angina, non-ST segment elevation myocardial infarction, and ST segment elevation myocardial infarction (STEMI), can be detected using an Guillem."
+      },
+      {
+        "claim": "Dry ether is used in the Wurtz reaction to ensure that the reaction is free from moisture.",
+        "edited": "Dry ether is used in the Epicureanism reaction to ensure that the reaction is free from moisture."
+      },
+      {
+        "claim": "Epicureanism has also managed to adapt and blend with modern secular life, further suggesting its potential survival in the postmodern world.",
+        "edited": "Zuni has also managed to adapt and blend with modern secular life, further suggesting its potential survival in the postmodern world."
+      }
+    ],
+    "wrong_entity_swap": [
+      {
+        "claim": "Acute coronary syndrome, which encompasses conditions involving ischemia or infarction such as unstable angina, non-ST segment elevation myocardial infarction, and ST segment elevation myocardial infarction (STEMI), can be detected using an ECG.",
+        "edited": "Acute coronary syndrome, which encompasses conditions involving ischemia or infarction such as unstable angina, non-ECGs segment elevation myocardial infarction, and ST segment elevation myocardial infarction (STEMI), can be detected using an ECG."
+      },
+      {
+        "claim": "Epicureanism has also managed to adapt and blend with modern secular life, further suggesting its potential survival in the postmodern world.",
+        "edited": "Stoicism has also managed to adapt and blend with modern secular life, further suggesting its potential survival in the postmodern world."
+      },
+      {
+        "claim": "The Aravalli Range is an example of a residual mountain.",
+        "edited": "The Mar 27 is an example of a residual mountain."
+      },
+      {
+        "claim": "The Mycenaeans were known for their ability to command and control the eastern Mediterranean sea routes , and their fleets had a significant impact on trade and cultural exchanges.",
+        "edited": "The Mycenaeans were known for their ability to command and control the eastern BC sea routes , and their fleets had a significant impact on trade and cultural exchanges."
+      },
+      {
+        "claim": "They run for approximately 670 km in a south-west direction, starting near Delhi and ending in Ahmedabad Gujarat.",
+        "edited": "They run for approximately 670 km in a south-west direction, starting near Delhi and ending in Northern-Western India."
+      }
+    ]
+  }
+}

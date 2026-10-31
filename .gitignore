@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+dist/
+build/
+*.egg-info/
+.env
+evals/fresh/raw/
+.DS_Store
+
+# Personal notes, not for the public repo
+research-mentors.md
