@@ -38,6 +38,33 @@ def test_markdown_links_become_sources():
     assert sources[0].url == "https://en.wikipedia.org/wiki/Eiffel_Tower"
 
 
+def test_paragraph_cited_only_at_its_end_is_cited_as_a_whole():
+    claims, _ = split_claims("ITER is still under construction. Assembly is underway in France. Research starts in 2034. [1][2]")
+    assert [c.cited for c in claims] == [["1", "2"]] * 3
+
+
+def test_paragraph_end_citation_skips_lead_ins_and_other_paragraphs():
+    claims, _ = split_claims("Curious? The trial ran for 72 weeks in total. Weight fell 21% on the top dose [1].\n\nPlacebo lost 3% of body weight.")
+    assert [c.cited for c in claims] == [[], ["1"], ["1"], []]
+
+
+def test_sentence_by_sentence_citations_are_left_alone():
+    claims, _ = split_claims("A is true here [1]. B is also true here. C is true here too [2].")
+    assert [c.cited for c in claims] == [["1"], [], ["2"]]
+
+
+def test_link_group_after_the_full_stop_belongs_to_its_sentence():
+    url = "https://www.nejm.org/doi/full/10.1056/NEJMoa2206038"
+    answer = f"Participants lost 15% to 21% over 72 weeks. ([nejm.org]({url}), [acc.org](https://www.acc.org/s1))\n\nThese were averages. ([nejm.org]({url}))"
+    claims, sources = split_claims(answer)
+    assert [(c.text, c.cited) for c in claims] == [
+        ("Participants lost 15% to 21% over 72 weeks.", [url, "https://www.acc.org/s1"]),
+        ("These were averages.", [url]),
+    ]
+    assert answer[claims[0].start : claims[0].end].endswith("[acc.org](https://www.acc.org/s1))")
+    assert [s.url for s in sources] == [url, "https://www.acc.org/s1"]
+
+
 def test_offsets_point_into_original_answer():
     answer = "First claim here is true [1]. Second claim here is false [2]."
     claims, _ = split_claims(answer)

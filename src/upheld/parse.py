@@ -101,6 +101,10 @@ def is_claim(text: str) -> bool:
     return len(words) >= 4 and not text.endswith((":", "?"))
 
 
+def _only_citations(raw: str) -> bool:
+    return not re.sub(r"[\s()\[\],.;]+", "", _MARKER.sub("", _MD_LINK.sub("", raw)))
+
+
 def split_claims(answer: str) -> tuple[list[Claim], list[Source]]:
     """Return claims and any sources discovered from inline markdown links."""
     link_ids: dict[str, str] = {}
@@ -109,11 +113,24 @@ def split_claims(answer: str) -> tuple[list[Claim], list[Source]]:
     for line in answer.splitlines(keepends=True):
         stripped = line.rstrip("\n")
         if stripped.strip() and not stripped.lstrip().startswith("#"):
+            pieces: list[list] = []  # [raw, start, end, cited]
             for raw, s, e in _sentences(stripped, pos):
-                text = _clean(raw)
-                if not text:
+                cited = _cited_ids(raw, link_ids)
+                if pieces and _only_citations(raw):
+                    # Citations after their sentence's full stop, like ChatGPT's "... dose. ([nejm.org](https://...))"
+                    pieces[-1][2] = e
+                    pieces[-1][3] = list(dict.fromkeys(pieces[-1][3] + cited))
                     continue
-                claims.append(Claim(len(claims), text, s, e, _cited_ids(raw, link_ids)))
+                pieces.append([raw, s, e, cited])
+            # A paragraph cited only at its end ("A. B. C. [1][2]") is cited as a whole.
+            if len(pieces) > 1 and pieces[-1][3] and not any(p[3] for p in pieces[:-1]):
+                for p in pieces[:-1]:
+                    if is_claim(_clean(p[0])):
+                        p[3] = pieces[-1][3]
+            for raw, s, e, cited in pieces:
+                text = _clean(raw)
+                if text:
+                    claims.append(Claim(len(claims), text, s, e, cited))
         pos += len(line)
     link_sources = [Source(id=url, url=url) for url in link_ids]
     return claims, link_sources

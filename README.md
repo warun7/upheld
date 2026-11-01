@@ -125,11 +125,18 @@ uv run python evals/perturbations.py ensemble                          # the edi
 
 `score` runs `lexical`, `lettuce` or `minicheck` over AttributionBench's train sample, dev and both test splits and caches the scores in `evals/results/scores/`, so `report` can compare and combine verifiers without rerunning them. `report` also prints the ensemble weights that `EnsembleVerifier` hard-codes.
 
-**Fresh 2026 benchmark** (`evals/fresh/`, built but not yet run). AttributionBench's search-engine answers are from 2023. This collects answers to 50 current questions from Perplexity, ChatGPT search, Gemini and Claude, converts every provider's citation format to `[n]` markers, and has a person label each citation blind, with the provider and upheld's verdict hidden:
+**Fresh 2026 benchmark** (`evals/fresh/`, answers collected, not yet labeled). AttributionBench's search-engine answers are from 2023. This collects answers to 25 current questions, converts them to `[n]` markers, and has a person label each citation blind, with the provider and upheld's verdict hidden.
+
+Each answer comes from a vendor's own agent using that vendor's own web search, with the same instructions: answer as a search assistant would, cite with `[n]` markers, use nothing but search.
+
+- **Claude:** Claude Sonnet 5.5, as Claude Code subagents with the WebSearch tool.
+- **OpenAI:** `gpt-6-luna` through the Codex CLI with OpenAI's web search. It runs in an empty read-only sandbox, without the user's MCP servers.
+- **Gemini:** Gemini 3.8 Flash through the Antigravity CLI (`agy`) with its `search_web` tool. Google's redirect links are resolved to the real URLs when the answer is collected.
+
+The OpenAI and Gemini answers run on a ChatGPT or Google subscription, not a paid API. The collector rejects any answer whose agent used a tool other than search, or cited a source it didn't list. Answers that come back in their own citation format (a provider's API, say) don't measure quite the same thing, so these rows compare agents with search rather than the consumer search products. Perplexity has no subscription CLI. It goes through OpenRouter at about a cent per question, and only its first answer is collected so far.
 
 ```bash
-uv sync --extra collect
-uv run python evals/fresh/collect.py perplexity openai gemini claude --limit 25   # needs API keys; costs money
+uv run python evals/fresh/collect.py openai gemini --limit 25   # needs codex and agy, logged in
 uv run python evals/fresh/label.py prepare      # audit every answer, fetching the cited pages
 uv run python evals/fresh/label.py label        # s/p/u/x per citation, resumable
 uv run python evals/fresh/label.py scoreboard   # per-provider table + upheld's agreement with the labels
@@ -161,7 +168,7 @@ The output, `scoreboard.md`, answers both "how often do each tool's citations ho
 - ~~Benchmark the verifiers on AttributionBench~~ done
 - ~~Stronger verifier, threshold calibrated on a held-out split~~ done: MiniCheck + ensemble, 64.4 → 74.4 ID macro-F1
 - ~~Edited-claim tests for each failure type~~ done
-- **Run the fresh 2026 benchmark.** The tooling is built; it needs API keys for the four providers and a few hours of labeling.
+- **Run the fresh 2026 benchmark.** Claude, OpenAI and Gemini answers are collected through each vendor's agent. Perplexity needs about $0.25 of OpenRouter credit, then a few hours of labeling.
 - **Close the gap on hard claims**: an LLM judge for claims the ensemble is unsure about, or fine-tuning MiniCheck on AttributionBench's train split (the paper's best fine-tuned model reaches 78.5 ID). Targets: ExpertQA, wrong-party swaps, one-step inferences, and contradictions the ensemble outvotes MiniCheck on.
 - Speed: MiniCheck in bf16, and batching claims across sources
 - PDF sources
