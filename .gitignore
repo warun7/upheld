@@ -7,6 +7,8 @@ build/
 *.egg-info/
 .env
 evals/fresh/raw/
+# Page excerpts from the cited sites; rebuild with label.py prepare
+evals/fresh/items.jsonl
 .DS_Store
 
 # Personal notes, not for the public repo
