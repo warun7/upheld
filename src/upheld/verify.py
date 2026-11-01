@@ -180,6 +180,74 @@ class MiniCheckVerifier:
         return probs
 
 
+class GraniteJudgeVerifier:
+    """Granite Guardian 3.3 8B (IBM, Apache 2.0) as an LLM judge, run with llama.cpp.
+
+    For the claims the small models get wrong because they take reasoning: a
+    fact pinned on another party the page also names, a claim the page
+    contradicts in its own words, a step of inference. Granite Guardian's
+    groundedness check reads the evidence and the claim and answers whether
+    the claim is ungrounded; the score is the probability that it answers no.
+    It runs IBM's 8-bit GGUF (8.7 GB, downloaded on first use) on Metal, CUDA
+    or CPU. Long evidence is split into ~1,500-word chunks and a claim scores
+    its best chunk. Claims checked against the same chunk reuse its cached
+    prompt, so only the claim is read again.
+    """
+
+    GGUF_REPO = "ibm-granite/granite-guardian-3.3-8b-GGUF"
+    GGUF_FILE = "granite-guardian-3.3-8b-Q8_0.gguf"
+    TOKENIZER = "ibm-granite/granite-guardian-3.3-8b"  # its chat template, which llama.cpp can't render with documents
+    VERDICT_PREFIX = "<think>\n</think>\n<score>"  # what it writes before " yes" (ungrounded) or " no" with thinking off
+    CHUNK_WORDS = 1500
+    N_CTX = 8192
+
+    def __init__(self, threshold: float = 0.5, device: str | None = None, model_path: str | None = None):
+        try:
+            import llama_cpp
+            from huggingface_hub import hf_hub_download
+            from transformers import AutoTokenizer
+        except ImportError as e:
+            raise ImportError("GraniteJudgeVerifier needs the optional extra: uv sync --extra judge") from e
+        self.llama_cpp = llama_cpp
+        self.tokenizer = AutoTokenizer.from_pretrained(self.TOKENIZER)
+        path = model_path or hf_hub_download(self.GGUF_REPO, self.GGUF_FILE)
+        self.llm = llama_cpp.Llama(path, n_ctx=self.N_CTX, n_gpu_layers=0 if device == "cpu" else -1, verbose=False)
+        self.yes, self.no = (self.llm.tokenize(t.encode(), add_bos=False, special=False)[0] for t in (" yes", " no"))
+        self.threshold = threshold
+        self.name = f"judge:granite-guardian-3.3-8b@{threshold}"
+
+    def check(
+        self, answer: str, claims: list[tuple[int, int]], passages: list[str], question: str | None = None
+    ) -> list[SupportResult]:
+        # The question is left out on purpose: shown it, the judge also weighs whether the claim
+        # answers it, which cut its AUC on 300 AttributionBench dev rows from 0.85 to 0.76.
+        chunks = _word_chunks(passages, self.CHUNK_WORDS)
+        return [SupportResult(round(max(self._grounded(chunk, answer[s:e]) for chunk in chunks), 3)) for s, e in claims]
+
+    def _grounded(self, document: str, claim: str) -> float:
+        prompt = self.tokenizer.apply_chat_template(
+            [{"role": "assistant", "content": claim}],
+            documents=[{"doc_id": "0", "text": document}],
+            guardian_config={"criteria_id": "groundedness"},
+            think=False,
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+        tokens = self.llm.tokenize((prompt + self.VERDICT_PREFIX).encode(), add_bos=False, special=True)
+        if len(tokens) >= self.N_CTX:
+            return self._grounded(document[: len(document) * 3 // 4], claim)
+        # Keep whatever prefix (the system prompt and document) the last call already read.
+        cached = self.llm.input_ids[: self.llm.n_tokens]
+        keep = 0
+        while keep < min(len(cached), len(tokens) - 1) and cached[keep] == tokens[keep]:
+            keep += 1
+        self.llm.n_tokens = keep
+        self.llm.eval(tokens[keep:])
+        logits = self.llama_cpp.llama_get_logits_ith(self.llm.ctx, -1)
+        yes, no = logits[self.yes], logits[self.no]
+        return 1 / (1 + math.exp(yes - no))
+
+
 class EnsembleVerifier:
     """Logistic regression over MiniCheck, word overlap and LettuceDetect.
 
@@ -189,19 +257,30 @@ class EnsembleVerifier:
     answer and points at the unsupported span. The weights were fit on 2,000
     rows of AttributionBench's train split and the threshold checked on its
     dev split (evals/attributionbench.py report prints them).
+
+    with_judge adds the Granite judge as a fourth member, with its own fit. It
+    is the most accurate setup but needs the judge extra, a 9 GB model and
+    about a second per claim, so it is opt-in.
     """
 
     WEIGHTS = {"minicheck": 1.61, "lexical": 1.33, "lettuce": 0.52}
     BIAS = -1.69
+    THRESHOLD = 0.5
+    JUDGE_WEIGHTS = {"judge": 1.57, "minicheck": 0.64, "lexical": 0.91, "lettuce": 0.28}
+    JUDGE_BIAS = -1.56
+    JUDGE_THRESHOLD = 0.48
 
-    def __init__(self, threshold: float = 0.5, device: str | None = None):
+    def __init__(self, threshold: float | None = None, device: str | None = None, with_judge: bool = False):
         self.members: dict[str, Verifier] = {
             "minicheck": MiniCheckVerifier(device=device),
             "lexical": LexicalVerifier(),
             "lettuce": LettuceVerifier(device=device),
         }
-        self.threshold = threshold
-        self.name = f"ensemble:{'+'.join(self.members)}@{threshold}"
+        if with_judge:
+            self.members["judge"] = GraniteJudgeVerifier(device=device)
+        self.weights, self.bias = (self.JUDGE_WEIGHTS, self.JUDGE_BIAS) if with_judge else (self.WEIGHTS, self.BIAS)
+        self.threshold = threshold if threshold is not None else self.JUDGE_THRESHOLD if with_judge else self.THRESHOLD
+        self.name = f"ensemble:{'+'.join(self.members)}@{self.threshold}"
 
     def check(
         self, answer: str, claims: list[tuple[int, int]], passages: list[str], question: str | None = None
@@ -209,7 +288,7 @@ class EnsembleVerifier:
         results = {name: m.check(answer, claims, passages, question) for name, m in self.members.items()}
         out = []
         for i in range(len(claims)):
-            z = self.BIAS + sum(w * results[name][i].score for name, w in self.WEIGHTS.items())
+            z = self.bias + sum(w * results[name][i].score for name, w in self.weights.items())
             score = round(1 / (1 + math.exp(-z)), 3)
             # Show where the claim goes wrong: LettuceDetect's spans, else word overlap's mismatched numbers.
             spans = (results["lettuce"][i].spans or results["lexical"][i].spans) if score < self.threshold else []
@@ -263,4 +342,8 @@ def make_verifier(name: str, threshold: float | None = None, device: str | None 
         return MiniCheckVerifier(device=device, **kwargs)
     if name == "ensemble":
         return EnsembleVerifier(device=device, **kwargs)
-    raise ValueError(f"unknown verifier: {name} (choose ensemble, minicheck, lettuce or lexical)")
+    if name == "ensemble+judge":
+        return EnsembleVerifier(device=device, with_judge=True, **kwargs)
+    if name == "judge":
+        return GraniteJudgeVerifier(device=device, **kwargs)
+    raise ValueError(f"unknown verifier: {name} (choose ensemble, ensemble+judge, minicheck, lettuce, lexical or judge)")

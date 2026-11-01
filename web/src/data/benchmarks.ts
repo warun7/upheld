@@ -21,6 +21,13 @@ export const METRICS: { id: Metric; label: string; note: string }[] = [
 
 export const SYSTEMS: BenchSystem[] = [
   {
+    name: "upheld ensemble + judge",
+    detail: "Adds the Granite Guardian 3.3 8B judge, opt-in",
+    group: "upheld",
+    fit: "5 numbers fit on 2,000 train rows",
+    scores: { id: 76.7, ood: 82.3, ExpertQA: 59.3, "Stanford-GenSearch": 78.6 },
+  },
+  {
     name: "upheld ensemble",
     detail: "MiniCheck + word overlap + LettuceDetect, the default",
     group: "upheld",
@@ -34,6 +41,13 @@ export const SYSTEMS: BenchSystem[] = [
     group: "upheld",
     fit: "same",
     scores: { id: 72.2, ood: 80.9, ExpertQA: 55.2, "Stanford-GenSearch": 69.5 },
+  },
+  {
+    name: "upheld judge",
+    detail: "Granite Guardian 3.3 8B alone, run with llama.cpp",
+    group: "upheld",
+    fit: "threshold only",
+    scores: { id: 74.2, ood: 80.3, ExpertQA: 59.1, "Stanford-GenSearch": 77.3 },
   },
   {
     name: "upheld minicheck",
@@ -94,6 +108,18 @@ export const SUBSETS = {
 
 export const SUBSET_TABLE: { name: string; threshold: number; id: Record<string, number>; ood: Record<string, number> }[] = [
   {
+    name: "ensemble + judge",
+    threshold: 0.48,
+    id: { AttributedQA: 84.3, ExpertQA: 59.3, LFQA: 84.5, "Stanford-GenSearch": 78.6, avg: 76.7 },
+    ood: { "AttrScore-GenSearch": 80.3, BEGIN: 86.6, HAGRID: 80.1, avg: 82.3 },
+  },
+  {
+    name: "ensemble + judge + entity",
+    threshold: 0.47,
+    id: { AttributedQA: 82.2, ExpertQA: 57.8, LFQA: 83.9, "Stanford-GenSearch": 75.5, avg: 74.8 },
+    ood: { "AttrScore-GenSearch": 77.5, BEGIN: 87.1, HAGRID: 78.4, avg: 81.0 },
+  },
+  {
     name: "ensemble",
     threshold: 0.5,
     id: { AttributedQA: 82.9, ExpertQA: 57.8, LFQA: 85.0, "Stanford-GenSearch": 71.8, avg: 74.4 },
@@ -104,6 +130,18 @@ export const SUBSET_TABLE: { name: string; threshold: number; id: Record<string,
     threshold: 0.5,
     id: { AttributedQA: 80.4, ExpertQA: 55.2, LFQA: 83.8, "Stanford-GenSearch": 69.5, avg: 72.2 },
     ood: { "AttrScore-GenSearch": 74.0, BEGIN: 90.1, HAGRID: 78.5, avg: 80.9 },
+  },
+  {
+    name: "judge",
+    threshold: 0.06,
+    id: { AttributedQA: 81.7, ExpertQA: 59.1, LFQA: 78.6, "Stanford-GenSearch": 77.3, avg: 74.2 },
+    ood: { "AttrScore-GenSearch": 80.0, BEGIN: 83.7, HAGRID: 77.2, avg: 80.3 },
+  },
+  {
+    name: "judge + entity",
+    threshold: 0.06,
+    id: { AttributedQA: 80.0, ExpertQA: 57.3, LFQA: 78.0, "Stanford-GenSearch": 74.8, avg: 72.5 },
+    ood: { "AttrScore-GenSearch": 75.8, BEGIN: 84.3, HAGRID: 78.0, avg: 79.4 },
   },
   {
     name: "minicheck",
@@ -175,7 +213,7 @@ export const EDITS = [
     n: 150,
     headline: "35%",
     caption: "caught",
-    sub: "The weak spot. MiniCheck alone catches 57%.",
+    sub: "The weak spot. 64% with the opt-in judge; MiniCheck alone catches 57%.",
     before: "Epicureanism has also managed to adapt and blend with modern secular life",
     after: "Stoicism has also managed to adapt and blend with modern secular life",
     changed: ["Epicureanism", "Stoicism"],
@@ -205,6 +243,8 @@ export const EDIT_TABLE: {
   multi: string;
 }[] = [
   { verifier: "ensemble", pass: "73-76%", wrongNumber: "100%", absent: "87%", absentEntity: "98%", swap: "35%", multi: "83%, 0% by one source" },
+  { verifier: "ensemble+judge", pass: "73-77%", wrongNumber: "100%", absent: "92%", absentEntity: "97%", swap: "64%", multi: "77%, 0% by one source" },
+  { verifier: "judge", pass: "75-80%", wrongNumber: "100%", absent: "95%", absentEntity: "97%", swap: "63%", multi: "78%, 3% by one source" },
   { verifier: "minicheck", pass: "71-74%", wrongNumber: "92%", absent: "90%", absentEntity: "97%", swap: "57%", multi: "68%, 4% by one source" },
   { verifier: "lettuce", pass: "68-72%", wrongNumber: "95%", absent: "82%", absentEntity: "97%", swap: "38%", multi: "86% (59 pairs), 0%" },
   { verifier: "lexical", pass: "76-87%", wrongNumber: "100%", absent: "40%", absentEntity: "97%", swap: "1%", multi: "95%, 6% by one source" },

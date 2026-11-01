@@ -75,7 +75,7 @@ export function Limits() {
 
 const SNIPPETS = {
   CLI: `git clone https://github.com/warun7/upheld && cd upheld
-uv sync --all-extras
+uv sync --extra models
 
 uv run upheld audit examples/eiffel.md          # fetches the cited URLs
 uv run upheld audit examples/glp1.json --json   # source text inline, full report`,

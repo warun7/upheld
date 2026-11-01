@@ -16,10 +16,9 @@ Two steps, so each verifier runs once and every comparison reuses its scores:
     uv run python evals/attributionbench.py report
 
 `score` caches one score per example in evals/results/scores/. `report` picks
-each verifier's threshold on the dev split (never the test splits), adds a
-logistic-regression ensemble of every scored verifier trained on a sample of
-the train split, prints macro-F1 per subset, and writes
-evals/results/attributionbench.json.
+each verifier's threshold on the dev split (never the test splits), fits the
+logistic-regression ensembles in ENSEMBLES on a sample of the train split,
+prints macro-F1 per subset, and writes evals/results/attributionbench.json.
 """
 
 import argparse
@@ -47,6 +46,8 @@ CACHE = Path.home() / ".cache" / "upheld" / "attributionbench"
 RESULTS = Path(__file__).parent / "results"
 SCORES = RESULTS / "scores"
 THRESHOLDS = [t / 100 for t in range(1, 100)]
+# Ensemble name -> its members, as in upheld's EnsembleVerifier (with_judge=False, then True).
+ENSEMBLES = {"ensemble": ["minicheck", "lexical", "lettuce"], "ensemble+judge": ["judge", "minicheck", "lexical", "lettuce"]}
 
 
 def load_split(split: str) -> list[tuple[str, Example]]:
@@ -116,15 +117,17 @@ def report() -> None:
     for name, by_split in scored.items():
         systems[name] = by_split
         systems[f"{name}+entity"] = {s: [0.0 if entity[s][i] else x for i, x in enumerate(v)] for s, v in by_split.items()}
-    if len(scored) > 1:
-        # Same features as upheld's EnsembleVerifier: each verifier's raw score, nothing else.
-        features = {s: [[scored[n][s][i] for n in scored] for i in range(len(rows[s]))] for s in SPLITS}
-        labels = [not e.unsupported for _, e in rows["train"]]
+    labels = [not e.unsupported for _, e in rows["train"]]
+    for ensemble, members in ENSEMBLES.items():
+        if not all(m in scored for m in members):
+            continue
+        # Same features as upheld's EnsembleVerifier: each member's raw score, nothing else.
+        features = {s: [[scored[m][s][i] for m in members] for i in range(len(rows[s]))] for s in SPLITS}
         model = LogisticRegression(max_iter=1000).fit(features["train"], labels)
-        systems["ensemble"] = {s: model.predict_proba(features[s])[:, 1].tolist() for s in SPLITS}
-        systems["ensemble+entity"] = {s: [0.0 if entity[s][i] else x for i, x in enumerate(v)] for s, v in systems["ensemble"].items()}
-        weights = dict(zip(scored, model.coef_[0].round(2).tolist()))
-        print(f"ensemble weights (for EnsembleVerifier): WEIGHTS = {weights}, BIAS = {model.intercept_[0]:.2f}")
+        systems[ensemble] = {s: model.predict_proba(features[s])[:, 1].tolist() for s in SPLITS}
+        systems[f"{ensemble}+entity"] = {s: [0.0 if entity[s][i] else x for i, x in enumerate(v)] for s, v in systems[ensemble].items()}
+        weights = dict(zip(members, model.coef_[0].round(2).tolist()))
+        print(f"{ensemble} weights (for EnsembleVerifier): WEIGHTS = {weights}, BIAS = {model.intercept_[0]:.2f}")
 
     results: dict = {}
     for name, by_split in systems.items():
@@ -171,7 +174,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("score", help="run one verifier and cache its scores")
-    p.add_argument("verifier", choices=["lexical", "lettuce", "minicheck"])
+    p.add_argument("verifier", choices=["lexical", "lettuce", "minicheck", "judge"])
     p.add_argument("--device", default=None, help="torch device, e.g. mps or cuda")
     p.add_argument("--splits", nargs="+", default=list(SPLITS), choices=list(SPLITS))
     p.add_argument("--force", action="store_true")

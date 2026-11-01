@@ -5,7 +5,7 @@ import { CopyBar, LinkButton, Section, Ticker } from "../components/ui";
 import { GITHUB_URL, PLAYGROUND_URL } from "../lib/site";
 
 const QUICKSTART =
-  "git clone https://github.com/warun7/upheld && cd upheld && uv sync --all-extras && uv run upheld audit examples/eiffel.md";
+  "git clone https://github.com/warun7/upheld && cd upheld && uv sync --extra models && uv run upheld audit examples/eiffel.md";
 
 /** Words rise out of a mask one after another. */
 function Rise({ text, delay, className = "" }: { text: string; delay: number; className?: string }) {

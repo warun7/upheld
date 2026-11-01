@@ -28,7 +28,7 @@ VERDICT_STYLE = {
 VerifierOpt = Annotated[
     str,
     typer.Option(
-        help="ensemble (all three combined, most accurate), minicheck (MiniCheck-Flan-T5), lettuce (LettuceDetect), or lexical (word overlap, no model)."
+        help="ensemble (MiniCheck, word overlap and LettuceDetect combined), ensemble+judge (adds the Granite Guardian 3.3 8B judge: most accurate, slower, needs the judge extra), minicheck (MiniCheck-Flan-T5), lettuce (LettuceDetect), lexical (word overlap, no model), or judge (the Granite judge alone)."
     ),
 ]
 ThresholdOpt = Annotated[float | None, typer.Option(help="Support score below this counts as unsupported.")]

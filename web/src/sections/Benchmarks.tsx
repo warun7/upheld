@@ -225,12 +225,12 @@ const NOTES = [
     body: "The ensemble's four numbers were fit on 2,000 train rows. The clean zero-shot comparison is MiniCheck alone at 0.5: 73.3 in-distribution, level with GPT-4.",
   },
   {
-    title: "Most of the gain is out-of-distribution",
-    body: "+3.8 over MiniCheck where answers copy their evidence and word overlap is a strong signal. In-distribution it adds 0.5, within noise.",
+    title: "An LLM judge adds 2.3 points",
+    body: "Opt-in: Granite Guardian 3.3 8B as a fourth signal lifts in-distribution to 76.7, 1.8 below the best fine-tuned model. Search-engine answers gain most, 71.8 to 78.6.",
   },
   {
     title: "ExpertQA is still hard",
-    body: "Long, expert-written claims score 57.8, below GPT-4's 59.2. Every model in the paper stays under 62.",
+    body: "Long, expert-written claims score 57.8, or 59.3 with the judge, level with GPT-4's 59.2. Every model in the paper stays under 62.",
   },
   {
     title: "The entity check costs 2 points",
@@ -256,7 +256,7 @@ export function Benchmarks() {
               <p className="display mt-2 text-5xl leading-none text-accent md:text-6xl">
                 <Ticker value="74.4" />
               </p>
-              <p className="mt-2 text-xs text-ink-3">macro-F1. GPT-4 + CoT: 73.3</p>
+              <p className="mt-2 text-xs text-ink-3">macro-F1. With the judge: 76.7. GPT-4 + CoT: 73.3</p>
             </div>
             <div>
               <p className="text-sm text-ink-2">Out-of-distribution</p>
@@ -522,8 +522,8 @@ const FRESH_NOTES = [
     body: "It is rarely flat wrong, but 45% of its citations back only part of the sentence: a figure or a second fact the page doesn't have.",
   },
   {
-    title: "A first filter, not a judge",
-    body: "upheld misses few bad citations, but 3 in 10 flags are false alarms, from retrieval picking the wrong passage or a cookie wall read as the page.",
+    title: "A first filter, not the final word",
+    body: "upheld misses few bad citations, but 3 in 10 flags are false alarms, often from retrieval picking the wrong passage. The opt-in LLM judge cuts false alarms on good citations from 38% to 29%.",
   },
   {
     title: "Labeled by Claude, blinded",

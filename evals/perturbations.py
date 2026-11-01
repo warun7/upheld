@@ -106,7 +106,7 @@ def single_sentence(claim: str) -> bool:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("verifier", choices=["lexical", "lettuce", "minicheck", "ensemble"])
+    parser.add_argument("verifier", choices=["lexical", "lettuce", "minicheck", "judge", "ensemble", "ensemble+judge"])
     parser.add_argument("--device", default=None)
     args = parser.parse_args()
 

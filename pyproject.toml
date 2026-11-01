@@ -38,6 +38,14 @@ minicheck = [
     "torch>=2.15.0",
     "transformers>=5.22.1",
 ]
+judge = [
+    "llama-cpp-python>=0.3.36",
+    "transformers>=5.22.1",
+]
+# Everything the default ensemble and hybrid retrieval need; the judge builds llama.cpp, so it stays separate.
+models = [
+    "upheld[minicheck,lettuce,dense]",
+]
 
 [build-system]
 requires = ["uv_build>=0.12.3,<0.13.0"]

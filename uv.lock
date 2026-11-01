@@ -315,6 +315,15 @@ wheels = [
 ]
 
 [[package]]
+name = "diskcache"
+version = "5.6.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/3f/21/1c1ffc1a039ddcc459db43cc108658f32c57d271d7289a2794e401d0fdb6/diskcache-5.6.3.tar.gz", hash = "sha256:2c3a3fa2743d8535d832ec61c2054a1641f41775aa7c556758a109941e33e4fc", size = 67916, upload-time = "2023-08-31T06:12:00.316Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3f/27/4570e78fc0bf5ea0ca45eb1de3818a23787af9b390c0b0a0033a1b8236f9/diskcache-5.6.3-py3-none-any.whl", hash = "sha256:5e31b2d5fbad117cc363ebaf6b689474db18a1f6438bc82358b024abd4c2ca19", size = 45550, upload-time = "2023-08-31T06:11:58.822Z" },
+]
+
+[[package]]
 name = "easydict"
 version = "1.13"
 source = { registry = "https://pypi.org/simple" }
@@ -681,6 +690,18 @@ sdist = { url = "https://files.pythonhosted.org/packages/1e/8f/28d7b59be67f6b057
 wheels = [
     { url = "https://files.pythonhosted.org/packages/72/22/eeafb213d9dcf97d61d09f61c8e1ab5126a64b1f7c2d874b42c591865c00/lettucedetect-0.2.3-py3-none-any.whl", hash = "sha256:e3654978069e00258dc9109d679d86c6688888ae9c657cc6a103a6942c47b334", size = 124669, upload-time = "2026-08-13T12:52:48.463Z" },
 ]
+
+[[package]]
+name = "llama-cpp-python"
+version = "0.3.36"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "diskcache" },
+    { name = "jinja2" },
+    { name = "numpy" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ec/e9/e7de2b0463ea3ffbf0ede6cb21b58c1258a8f6521aae45ca773a59fe7cf3/llama_cpp_python-0.3.36.tar.gz", hash = "sha256:832db0699007f1be95a7e41ef12e88926b02ba836461e36a36372db2760c1a2e", size = 76589250, upload-time = "2026-10-01T05:48:01.345Z" }
 
 [[package]]
 name = "locate"
@@ -2172,10 +2193,20 @@ dependencies = [
 dense = [
     { name = "sentence-transformers" },
 ]
+judge = [
+    { name = "llama-cpp-python" },
+    { name = "transformers" },
+]
 lettuce = [
     { name = "lettucedetect" },
 ]
 minicheck = [
+    { name = "torch" },
+    { name = "transformers" },
+]
+models = [
+    { name = "lettucedetect" },
+    { name = "sentence-transformers" },
     { name = "torch" },
     { name = "transformers" },
 ]
@@ -2191,18 +2222,21 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.162.0" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "lettucedetect", marker = "extra == 'lettuce'", specifier = ">=0.2.3" },
+    { name = "llama-cpp-python", marker = "extra == 'judge'", specifier = ">=0.3.36" },
     { name = "pydantic", specifier = ">=2.14.2" },
     { name = "rank-bm25", specifier = ">=0.2.2" },
     { name = "rich", specifier = ">=15.0.0" },
     { name = "sentence-transformers", marker = "extra == 'dense'", specifier = ">=6.2.0" },
     { name = "torch", marker = "extra == 'minicheck'", specifier = ">=2.15.0" },
     { name = "trafilatura", specifier = ">=2.3.1" },
+    { name = "transformers", marker = "extra == 'judge'", specifier = ">=5.22.1" },
     { name = "transformers", marker = "extra == 'minicheck'", specifier = ">=5.22.1" },
     { name = "typer", specifier = ">=0.27.3" },
+    { name = "upheld", extras = ["minicheck", "lettuce", "dense"], marker = "extra == 'models'" },
     { name = "uvicorn", specifier = ">=0.54.0" },
     { name = "wordfreq", specifier = ">=3.1.1" },
 ]
-provides-extras = ["lettuce", "dense", "minicheck"]
+provides-extras = ["lettuce", "dense", "minicheck", "judge", "models"]
 
 [package.metadata.requires-dev]
 dev = [

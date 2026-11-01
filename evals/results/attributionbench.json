@@ -1,5 +1,39 @@
 {
   "systems": {
+    "judge": {
+      "dev_threshold": 0.06,
+      "id": {
+        "AttributedQA": 81.7,
+        "ExpertQA": 59.1,
+        "LFQA": 78.6,
+        "Stanford-GenSearch": 77.3,
+        "avg": 74.2,
+        "avg_at_default": 75.6
+      },
+      "ood": {
+        "AttrScore-GenSearch": 80.0,
+        "BEGIN": 83.7,
+        "HAGRID": 77.2,
+        "avg": 80.3,
+        "avg_at_default": 80.9
+      }
+    },
+    "judge+entity": {
+      "dev_threshold": 0.06,
+      "id": {
+        "AttributedQA": 80.0,
+        "ExpertQA": 57.3,
+        "LFQA": 78.0,
+        "Stanford-GenSearch": 74.8,
+        "avg": 72.5
+      },
+      "ood": {
+        "AttrScore-GenSearch": 75.8,
+        "BEGIN": 84.3,
+        "HAGRID": 78.0,
+        "avg": 79.4
+      }
+    },
     "lettuce": {
       "dev_threshold": 0.88,
       "id": {
@@ -133,9 +167,47 @@
         "HAGRID": 78.5,
         "avg": 80.9
       }
+    },
+    "ensemble+judge": {
+      "dev_threshold": 0.48,
+      "id": {
+        "AttributedQA": 84.3,
+        "ExpertQA": 59.3,
+        "LFQA": 84.5,
+        "Stanford-GenSearch": 78.6,
+        "avg": 76.7
+      },
+      "ood": {
+        "AttrScore-GenSearch": 80.3,
+        "BEGIN": 86.6,
+        "HAGRID": 80.1,
+        "avg": 82.3
+      }
+    },
+    "ensemble+judge+entity": {
+      "dev_threshold": 0.47,
+      "id": {
+        "AttributedQA": 82.2,
+        "ExpertQA": 57.8,
+        "LFQA": 83.9,
+        "Stanford-GenSearch": 75.5,
+        "avg": 74.8
+      },
+      "ood": {
+        "AttrScore-GenSearch": 77.5,
+        "BEGIN": 87.1,
+        "HAGRID": 78.4,
+        "avg": 81.0
+      }
     }
   },
   "seconds_per_example": {
+    "judge": {
+      "train": 0.797,
+      "dev": 0.622,
+      "id": 0.835,
+      "ood": 0.437
+    },
     "lettuce": {
       "train": 0.223,
       "dev": 0.189,
