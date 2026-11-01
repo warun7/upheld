@@ -26,6 +26,8 @@
   --hl-ok: rgb(43 59 255 / 0.12);
   --hl-bad: rgb(200 54 26 / 0.12);
   --hl-warn: rgb(163 90 0 / 0.13);
+  /* Partial support in charts: a tint of --bad, apart from it in lightness so color-blind readers can tell them apart. */
+  --partial: #eda08e;
   --shadow: 0 1px 2px rgb(15 15 18 / 0.04), 0 12px 32px -16px rgb(15 15 18 / 0.18);
   color-scheme: light;
 }
@@ -47,6 +49,7 @@
   --hl-ok: rgb(140 149 255 / 0.18);
   --hl-bad: rgb(255 122 92 / 0.16);
   --hl-warn: rgb(242 176 69 / 0.16);
+  --partial: #a8503c;
   --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 16px 40px -18px rgb(0 0 0 / 0.8);
   color-scheme: dark;
 }
@@ -70,6 +73,7 @@
   --color-hl-ok: var(--hl-ok);
   --color-hl-bad: var(--hl-bad);
   --color-hl-warn: var(--hl-warn);
+  --color-partial: var(--partial);
   --shadow-float: var(--shadow);
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }

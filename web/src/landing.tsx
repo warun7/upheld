@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { Footer, Nav } from "./components/Chrome";
-import { Benchmarks, EditedClaims } from "./sections/Benchmarks";
+import { Benchmarks, EditedClaims, FreshBenchmark } from "./sections/Benchmarks";
 import { FinalCta, Install, Limits } from "./sections/Closing";
 import { Demo } from "./sections/Demo";
 import { Hero } from "./sections/Hero";
@@ -20,6 +20,7 @@ function Landing() {
         <Verdicts />
         <Benchmarks />
         <EditedClaims />
+        <FreshBenchmark />
         <Limits />
         <Install />
         <FinalCta />

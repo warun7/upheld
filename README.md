@@ -67,7 +67,7 @@ Fetching is guarded against SSRF (no private, loopback or metadata addresses, ch
 
 ## How good is it
 
-Two kinds of test: a public benchmark of human-labeled citations, and edited claims aimed at each failure upheld exists to catch. Both give the verifier the evidence directly, so parsing, fetching and retrieval aren't exercised. The fresh benchmark under [Evals](#evals) is for that.
+Three kinds of test: a public benchmark of human-labeled citations, edited claims aimed at each failure upheld exists to catch, and a fresh benchmark of 2026 answers. The first two give the verifier the evidence directly, so parsing, fetching and retrieval aren't exercised. The fresh benchmark runs the whole pipeline on real pages.
 
 ### AttributionBench
 
@@ -115,6 +115,29 @@ What this says:
 
 The edits are synthetic and the claims come from AttributionBench, so these numbers say whether each check does its job, not how often each failure happens in real answers.
 
+### Fresh 2026 benchmark
+
+25 current questions, answered on 31 October and 1 November 2026 by Claude, OpenAI and Gemini agents with their own web search (how, under [Evals](#evals)). upheld split each answer into claims and found 641 pairs of a claim and a page it cites. Each pair is labeled supported, partial, unsupported or can't judge: 639 by Claude Sonnet 5.5 subagents following [`labeling-guide.md`](evals/fresh/labeling-guide.md), 2 by hand. The labelers saw the question, the claim, the cited URL and upheld's retrieved passages, but not which agent wrote the answer or upheld's verdict, and read the full page whenever the passages didn't settle it.
+
+| Agent | Citations | Supported | Partial | Unsupported | Can't judge | Dead links |
+|---|---|---|---|---|---|---|
+| OpenAI `gpt-6-luna`, Codex CLI | 125 | **51%** | 28% | 14% | 6% | 1 |
+| Claude Sonnet 5.5, Claude Code | 255 | **47%** | 25% | 17% | 11% | 6 |
+| Gemini 3.8 Flash, Antigravity CLI | 257 | **41%** | 45% | 7% | 7% | 0 |
+
+Perplexity has one answer (4 citations) so far and isn't ranked. The full table is [`evals/fresh/scoreboard.md`](evals/fresh/scoreboard.md).
+
+**upheld against these labels**: on the 476 citations whose page it could read, it agreed with the label 75% of the time. It flagged 91% of the citations labeled partial or unsupported, and 70% of its flags were right.
+
+What this says:
+
+- **About half of each agent's citations fully back their sentence.** Most of the rest are partial: the page has part of the sentence but not a figure, a second fact or a conclusion drawn from it. Citations that back nothing at all are 7–17%.
+- **No clear winner.** Each agent's share has a margin of roughly ±6–9 points, so OpenAI and Claude are level. Gemini's lower share is almost all partial: it is rarely flat wrong, but its sentences often say more than the cited page does.
+- **Dead links are rare**: 7 of 641 citations, 6 of them Claude's.
+- **upheld works as a first filter on real answers.** It misses few bad citations, but about 3 in 10 of its flags are false alarms. In a sample, these came from retrieval picking the wrong part of a long page, or a cookie wall served as the page.
+
+Caveats: the labels come from Claude, not people, and Claude labeled Claude's answers too. Blinding helps, but self-preference isn't ruled out. Of the 2 hand labels, Claude matched one; on the other it couldn't read the paywalled page. 57 citations (9%) are can't judge, mostly pages that block automated fetches; some blocked pages were read through an archived copy or the paper's abstract and others weren't. And these are agents with search following the same instructions, not the consumer search products.
+
 ## Evals
 
 ```bash
@@ -125,7 +148,7 @@ uv run python evals/perturbations.py ensemble                          # the edi
 
 `score` runs `lexical`, `lettuce` or `minicheck` over AttributionBench's train sample, dev and both test splits and caches the scores in `evals/results/scores/`, so `report` can compare and combine verifiers without rerunning them. `report` also prints the ensemble weights that `EnsembleVerifier` hard-codes.
 
-**Fresh 2026 benchmark** (`evals/fresh/`, answers collected, not yet labeled). AttributionBench's search-engine answers are from 2023. This collects answers to 25 current questions, converts them to `[n]` markers, and has a person label each citation blind, with the provider and upheld's verdict hidden.
+**Fresh 2026 benchmark** (`evals/fresh/`, results under [How good is it](#fresh-2026-benchmark)). AttributionBench's search-engine answers are from 2023. This collects answers to 25 current questions, converts them to `[n]` markers, and labels each citation blind, with the provider and upheld's verdict hidden.
 
 Each answer comes from a vendor's own agent using that vendor's own web search, with the same instructions: answer as a search assistant would, cite with `[n]` markers, use nothing but search.
 
@@ -137,12 +160,12 @@ The OpenAI and Gemini answers run on a ChatGPT or Google subscription, not a pai
 
 ```bash
 uv run python evals/fresh/collect.py openai gemini --limit 25   # needs codex and agy, logged in
-uv run python evals/fresh/label.py prepare      # audit every answer, fetching the cited pages
-uv run python evals/fresh/label.py label        # s/p/u/x per citation, resumable
+uv run python evals/fresh/label.py prepare      # audit every answer, fetching the cited pages; resumable
+uv run python evals/fresh/label.py label        # label by hand, s/p/u/x per citation; resumable
 uv run python evals/fresh/label.py scoreboard   # per-provider table + upheld's agreement with the labels
 ```
 
-The output, `scoreboard.md`, answers both "how often do each tool's citations hold up?" and "how often does upheld agree with a person?", on 2026 answers with real fetching and retrieval.
+The labels in `labels-claude.jsonl` came from Claude subagents given `labeling-guide.md` and one blinded batch of items each; each "supported" or "partial" label carries a quote from the page. Hand labels in `labels.jsonl` override them. The output, `scoreboard.md`, answers both "how often do each tool's citations hold up?" and "how often does upheld agree with the labels?", on 2026 answers with real fetching and retrieval. `items.jsonl`, the pairs with their retrieved passages, holds text copied from the cited pages, so it isn't committed; `prepare` rebuilds it.
 
 `upheld eval` scores any verifier against a JSONL of hand labels (`claim`, `evidence`, `label`, and ideally the full `answer`), with a threshold sweep. `evals/smoke.jsonl` is 8 rows that check the command works; it is not a benchmark.
 
@@ -158,6 +181,7 @@ The output, `scoreboard.md`, answers both "how often do each tool's citations ho
 - **Entity check is a heuristic** (capitalized phrases + word frequency), not NER. It false-alarms on names the source writes differently and misses lowercase entities.
 - **Speed.** The ensemble takes roughly 0.3–1 s per claim per source on an Apple M5 Pro and is several times slower on CPU. MiniCheck dominates. `--verifier lexical` is instant but much weaker.
 - **No PDF support yet**; PDF sources come back `unverifiable`.
+- **Block pages can pass as the source.** A cookie wall or bot check that returns 200 is treated as the page, so the claim is judged against the wall's text and marked unsupported (six PubMed citations in the fresh benchmark).
 - **Sentence-level claims.** A sentence with two facts is judged as one unit.
 - Some sites reject generic user agents. The default names this repo; set `UPHELD_USER_AGENT` to your own project URL if you deploy upheld (Wikipedia returns 403 instead of 404 for missing pages without one).
 
@@ -168,7 +192,7 @@ The output, `scoreboard.md`, answers both "how often do each tool's citations ho
 - ~~Benchmark the verifiers on AttributionBench~~ done
 - ~~Stronger verifier, threshold calibrated on a held-out split~~ done: MiniCheck + ensemble, 64.4 → 74.4 ID macro-F1
 - ~~Edited-claim tests for each failure type~~ done
-- **Run the fresh 2026 benchmark.** Claude, OpenAI and Gemini answers are collected through each vendor's agent. Perplexity needs about $0.25 of OpenRouter credit, then a few hours of labeling.
+- ~~Run the fresh 2026 benchmark~~ done: 641 citations from Claude, OpenAI and Gemini agents, 41–51% fully supported, and upheld flags 91% of the rest. Next: Perplexity (about $0.25 of OpenRouter credit), and a second vendor relabeling a sample to check Claude's labels for self-preference
 - **Close the gap on hard claims**: an LLM judge for claims the ensemble is unsure about, or fine-tuning MiniCheck on AttributionBench's train split (the paper's best fine-tuned model reaches 78.5 ID). Targets: ExpertQA, wrong-party swaps, one-step inferences, and contradictions the ensemble outvotes MiniCheck on.
 - Speed: MiniCheck in bf16, and batching claims across sources
 - PDF sources

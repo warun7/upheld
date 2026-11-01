@@ -210,6 +210,26 @@ export const EDIT_TABLE: {
   { verifier: "lexical", pass: "76-87%", wrongNumber: "100%", absent: "40%", absentEntity: "97%", swap: "1%", multi: "95%, 6% by one source" },
 ];
 
+// Fresh 2026 benchmark: counts from evals/fresh/labels-claude.jsonl with the hand labels
+// in labels.jsonl on top, as in evals/fresh/scoreboard.md.
+export type FreshLabel = "supported" | "partial" | "unsupported" | "cant_judge";
+
+export const FRESH_LABELS: { id: FreshLabel; label: string; note: string }[] = [
+  { id: "supported", label: "Supported", note: "The page backs everything the sentence says" },
+  { id: "partial", label: "Partial", note: "It backs part of it; a figure, a second fact or a conclusion isn't there" },
+  { id: "unsupported", label: "Unsupported", note: "It backs none of it, or says the opposite" },
+  { id: "cant_judge", label: "Can't judge", note: "The page blocked automated reading" },
+];
+
+export const FRESH_AGENTS: { name: string; model: string; counts: Record<FreshLabel, number>; dead: number }[] = [
+  { name: "OpenAI", model: "gpt-6-luna, Codex CLI", counts: { supported: 64, partial: 35, unsupported: 18, cant_judge: 8 }, dead: 1 },
+  { name: "Claude", model: "Sonnet 5.5, Claude Code", counts: { supported: 119, partial: 64, unsupported: 43, cant_judge: 29 }, dead: 6 },
+  { name: "Gemini", model: "3.8 Flash, Antigravity CLI", counts: { supported: 106, partial: 115, unsupported: 19, cant_judge: 17 }, dead: 0 },
+];
+
+// upheld's verdicts against those labels, on the citations whose page it could read. Partial counts as unsupported.
+export const FRESH_UPHELD = { read: 476, agreement: 75, recall: 91, precision: 70 };
+
 export const PROBLEM_STATS = [
   {
     value: "39-77%",
