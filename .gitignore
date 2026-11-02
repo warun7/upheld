@@ -9,6 +9,8 @@ build/
 evals/fresh/raw/
 # Page excerpts from the cited sites; rebuild with label.py prepare
 evals/fresh/items.jsonl
+# Page text fetched for the label cross-check; rebuild with crosscheck.py pages
+evals/fresh/pages/
 .DS_Store
 
 # Personal notes, not for the public repo

@@ -526,8 +526,8 @@ const FRESH_NOTES = [
     body: "upheld misses few bad citations, but 3 in 10 flags are false alarms, often from retrieval picking the wrong passage. The opt-in LLM judge cuts false alarms on good citations from 38% to 29%.",
   },
   {
-    title: "Labeled by Claude, blinded",
-    body: "Claude Sonnet 5.5 subagents labeled 639 of 641 citations without knowing which agent wrote them. Claude's own answers are among them.",
+    title: "Labeled by Claude, checked by GPT and Gemini",
+    body: "Claude Sonnet 5.5 subagents labeled 639 of 641 citations blind. GPT and Gemini relabeled 150 and reached the same verdict on 92-93%, as often as they agree with each other, with no sign Claude favors its own answers.",
   },
 ];
 

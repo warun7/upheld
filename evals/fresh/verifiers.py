@@ -55,8 +55,8 @@ def score(name: str, device: str | None) -> None:
     print(f"{len(done)} scores in {out}")
 
 
-def report() -> None:
-    items = _items()
+def load_scores() -> tuple[dict[str, dict[str, float]], dict[str, float]]:
+    """Cached scores by verifier and item id, with the shipped ensembles computed from their members, and each verifier's dev threshold."""
     thresholds = {name: r["dev_threshold"] for name, r in json.loads(AB_RESULTS.read_text())["systems"].items()}
     scores = {p.stem: json.loads(p.read_text()) for p in sorted(SCORES.glob("*.json"))}
     ensembles = {
@@ -67,15 +67,21 @@ def report() -> None:
         if all(m in scores for m in weights):
             ids = set.intersection(*(set(scores[m]) for m in weights))
             scores[name] = {i: 1 / (1 + math.exp(-(bias + sum(w * scores[m][i] for m, w in weights.items())))) for i in ids}
+    return scores, thresholds
+
+
+def report() -> None:
+    items = _items()
+    scores, thresholds = load_scores()
     print(f"{len(items)} labeled items with passages; unsupported = partial or unsupported\n")
     print(f"{'verifier':12} {'thr':>5} {'agree':>6} {'macroF1':>8} {'prec':>5} {'recall':>6}")
     for name, by_id in scores.items():
         threshold = thresholds.get(name, 0.5)
-        rows = [(by_id[i["id"]] < threshold, i["label"] != "supported") for i in items if i["id"] in by_id]
-        print(f"{name:12} {threshold:>5} " + _metrics(rows))
+        m = metrics([(by_id[i["id"]] < threshold, i["label"] != "supported") for i in items if i["id"] in by_id])
+        print(f"{name:12} {threshold:>5} {m['agree']:>6.0%} {100 * m['macro_f1']:>8.1f} {m['precision']:>5.2f} {m['recall']:>6.2f}")
 
 
-def _metrics(rows: list[tuple[bool, bool]]) -> str:
+def metrics(rows: list[tuple[bool, bool]]) -> dict[str, float]:
     """rows: (flagged, actually unsupported)."""
     tp = sum(f and u for f, u in rows)
     fp = sum(f and not u for f, u in rows)
@@ -84,8 +90,7 @@ def _metrics(rows: list[tuple[bool, bool]]) -> str:
     f1 = lambda p, r: 2 * p * r / (p + r) if p + r else 0.0  # noqa: E731
     p_bad, r_bad = tp / (tp + fp) if tp + fp else 0.0, tp / (tp + fn) if tp + fn else 0.0
     p_ok, r_ok = tn / (tn + fn) if tn + fn else 0.0, tn / (tn + fp) if tn + fp else 0.0
-    macro = (f1(p_bad, r_bad) + f1(p_ok, r_ok)) / 2
-    return f"{(tp + tn) / len(rows):>6.0%} {100 * macro:>8.1f} {p_bad:>5.2f} {r_bad:>6.2f}"
+    return {"agree": (tp + tn) / len(rows), "macro_f1": (f1(p_bad, r_bad) + f1(p_ok, r_ok)) / 2, "precision": p_bad, "recall": r_bad}
 
 
 def main() -> None:

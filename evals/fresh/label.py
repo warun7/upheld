@@ -195,6 +195,8 @@ def scoreboard() -> None:
     if both := [i for i in hand if i in model]:
         same = sum(hand[i] == model[i] for i in both)
         lines += ["", f"Claude's labels match the hand labels on {same} of {len(both)} citations labeled both ways."]
+    if (HERE / "crosscheck.md").exists():
+        lines += ["", "GPT and Gemini relabeled a sample of these citations to check Claude's labels: see crosscheck.md."]
     SCOREBOARD.write_text("\n".join(lines) + "\n")
     console.print("\n".join(lines))
 

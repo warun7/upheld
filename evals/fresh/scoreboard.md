@@ -12,3 +12,5 @@ How often each AI search tool's citations back the claim they're attached to. La
 upheld vs these labels (476 citations it could read): agreement 75%, precision 0.70 and recall 0.91 on unsupported citations.
 
 Claude's labels match the hand labels on 1 of 2 citations labeled both ways.
+
+GPT and Gemini relabeled a sample of these citations to check Claude's labels: see crosscheck.md.

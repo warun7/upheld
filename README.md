@@ -126,7 +126,7 @@ The edits are synthetic and the claims come from AttributionBench, so these numb
 
 ### Fresh 2026 benchmark
 
-25 current questions, answered on 31 October and 1 November 2026 by Claude, OpenAI and Gemini agents with their own web search (how, under [Evals](#evals)). upheld split each answer into claims and found 641 pairs of a claim and a page it cites. Each pair is labeled supported, partial, unsupported or can't judge: 639 by Claude Sonnet 5.5 subagents following [`labeling-guide.md`](evals/fresh/labeling-guide.md), 2 by hand. The labelers saw the question, the claim, the cited URL and upheld's retrieved passages, but not which agent wrote the answer or upheld's verdict, and read the full page whenever the passages didn't settle it.
+25 current questions, answered on 31 October and 1 November 2026 by Claude, OpenAI and Gemini agents with their own web search (how, under [Evals](#evals)). upheld split each answer into claims and found 641 pairs of a claim and a page it cites. Each pair is labeled supported, partial, unsupported or can't judge: 639 by Claude Sonnet 5.5 subagents following [`labeling-guide.md`](evals/fresh/labeling-guide.md), 2 by hand. The labelers saw the question, the claim, the cited URL and upheld's retrieved passages, but not which agent wrote the answer or upheld's verdict, and read the full page whenever the passages didn't settle it. GPT and Gemini relabeled a sample of 150 to check Claude's labels ([below](#checking-claudes-labels)).
 
 | Agent | Citations | Supported | Partial | Unsupported | Can't judge | Dead links |
 |---|---|---|---|---|---|---|
@@ -147,7 +147,7 @@ Perplexity has one answer (4 citations) so far and isn't ranked. The full table 
 | `judge` alone | **82%** | **82.0** | 85% | **21%** |
 | `minicheck` | 72% | 71.1 | 82% | 39% |
 
-The judge ensemble's gain comes from fewer false alarms: it flags 21 fewer good citations and misses about the same number of bad ones. The labels come from an LLM too, though, so some of the gain may be two LLMs agreeing rather than the judge being right.
+The judge ensemble's gain comes from fewer false alarms: it flags 21 fewer good citations and misses about the same number of bad ones. The judge's lead holds when GPT or Gemini does the labeling instead of Claude ([below](#checking-claudes-labels)), but all three labelers are LLMs, so some of the gain may still be LLMs agreeing with each other rather than the judge being right.
 
 What this says:
 
@@ -156,7 +156,21 @@ What this says:
 - **Dead links are rare**: 7 of 641 citations, 6 of them Claude's.
 - **upheld works as a first filter on real answers.** It misses few bad citations, but about 3 in 10 of its flags are false alarms. In a sample, these came from retrieval picking the wrong part of a long page, or a cookie wall served as the page. The judge cuts the false alarms on good citations from 38% to 29%.
 
-Caveats: the labels come from Claude, not people, and Claude labeled Claude's answers too. Blinding helps, but self-preference isn't ruled out. Of the 2 hand labels, Claude matched one; on the other it couldn't read the paywalled page. 57 citations (9%) are can't judge, mostly pages that block automated fetches; some blocked pages were read through an archived copy or the paper's abstract and others weren't. And these are agents with search following the same instructions, not the consumer search products.
+#### Checking Claude's labels
+
+GPT (`gpt-6-luna` through the Codex CLI) and Gemini (Gemini 4 Argon through the Antigravity CLI) relabeled 150 citations, sampled in proportion to each agent and each of Claude's labels, under the same guide and the same blinding, and without seeing Claude's labels. Both got the passages plus the cited page's text, fetched once so that both read the same document. Full results: [`evals/fresh/crosscheck.md`](evals/fresh/crosscheck.md).
+
+| Labelers | Same label | Same verdict (supported or not) | Cohen's κ (verdict) |
+|---|---|---|---|
+| Claude vs GPT | 85% | 93% | 0.86 |
+| Claude vs Gemini | 86% | 92% | 0.85 |
+| GPT vs Gemini | 89% | 92% | 0.84 |
+
+- **Claude agrees with each of them as often as they agree with each other.** Where GPT and Gemini give the same verdict, Claude matches on 118 of 128 citations, and couldn't read the page for 6 more. The other 4 are citations Claude passed and both others called partial, all claims that say a little more than the page: "the DOJ argued" where the page says the court found, or "2.4 to 2.5 ppm" where the page gives 2.4.
+- **No sign that Claude favors its own answers.** Claude's citations get 47% supported from Claude, 45% from GPT and 47% from Gemini. GPT is the strictest labeler on each ranked agent (40% supported overall, against 45% from Claude and from Gemini), and Gemini's citations rank last under all three labelers.
+- **upheld's numbers hold.** On the 106 sampled citations with passages, the judge ensemble scores 84.1, 84.7 and 85.8 macro-F1 against Claude's, GPT's and Gemini's labels, and the default ensemble scores 79.0, 79.4 and 76.8.
+
+Caveats: the labels come from LLMs, not people. The cross-check rules out a bias peculiar to Claude, not one that all three models share, and only 2 citations have hand labels (Claude matched one; on the other it couldn't read the paywalled page). 57 citations (9%) are can't judge, mostly pages that block automated fetches; some blocked pages were read through an archived copy or the paper's abstract and others weren't. And these are agents with search following the same instructions, not the consumer search products.
 
 ## Evals
 
@@ -184,9 +198,13 @@ uv run python evals/fresh/label.py prepare      # audit every answer, fetching t
 uv run python evals/fresh/label.py label        # label by hand, s/p/u/x per citation; resumable
 uv run python evals/fresh/label.py scoreboard   # per-provider table + upheld's agreement with the labels
 uv run python evals/fresh/verifiers.py score judge && uv run python evals/fresh/verifiers.py report   # each verifier vs the labels
+uv run python evals/fresh/crosscheck.py sample && uv run python evals/fresh/crosscheck.py pages    # 150 citations, their pages fetched once
+uv run python evals/fresh/crosscheck.py label gpt && uv run python evals/fresh/crosscheck.py label gemini && uv run python evals/fresh/crosscheck.py report
 ```
 
 The labels in `labels-claude.jsonl` came from Claude subagents given `labeling-guide.md` and one blinded batch of items each; each "supported" or "partial" label carries a quote from the page. Hand labels in `labels.jsonl` override them. The output, `scoreboard.md`, answers both "how often do each tool's citations hold up?" and "how often does upheld agree with the labels?", on 2026 answers with real fetching and retrieval. `items.jsonl`, the pairs with their retrieved passages, holds text copied from the cited pages, so it isn't committed; `prepare` rebuilds it.
+
+`crosscheck.py` checks the Claude labels. GPT and Gemini relabel a stratified sample of 150 citations through their subscription CLIs, with no tools at all. Antigravity can't open a URL, so each cited page is fetched once and both labelers get the same text in the prompt. A page that can't be read is taken from the Wayback Machine, then from the copy Claude read; text under 300 characters counts as a block page. A batch is rejected and retried if its labeler used a tool or skipped an item. The labels are in `labels-gpt.jsonl` and `labels-gemini.jsonl`, and the report is `crosscheck.md`. The fetched pages, in `pages/`, aren't committed either.
 
 `upheld eval` scores any verifier against a JSONL of hand labels (`claim`, `evidence`, `label`, and ideally the full `answer`), with a threshold sweep. `evals/smoke.jsonl` is 8 rows that check the command works; it is not a benchmark.
 
@@ -213,7 +231,7 @@ The labels in `labels-claude.jsonl` came from Claude subagents given `labeling-g
 - ~~Benchmark the verifiers on AttributionBench~~ done
 - ~~Stronger verifier, threshold calibrated on a held-out split~~ done: MiniCheck + ensemble, 64.4 → 74.4 ID macro-F1
 - ~~Edited-claim tests for each failure type~~ done
-- ~~Run the fresh 2026 benchmark~~ done: 641 citations from Claude, OpenAI and Gemini agents, 41–51% fully supported, and upheld flags 91% of the rest. Next: Perplexity (about $0.25 of OpenRouter credit), and a second vendor relabeling a sample to check Claude's labels for self-preference
+- ~~Run the fresh 2026 benchmark~~ done: 641 citations from Claude, OpenAI and Gemini agents, 41–51% fully supported, and upheld flags 91% of the rest. GPT and Gemini relabeled a 150-citation sample and agree with Claude on 92–93% of verdicts, with no sign of self-preference. Next: Perplexity (about $0.25 of OpenRouter credit), and hand labels on the citations the labelers disagree on
 - ~~LLM judge for hard claims~~ done: Granite Guardian 3.3 8B as an opt-in fourth signal, 74.4 → 76.7 ID macro-F1, wrong-party swaps caught 35% → 64%, fresh-label agreement 77% → 81%. Next: fine-tuning MiniCheck on AttributionBench's train split (the paper's best fine-tuned model reaches 78.5 ID), and a faster judge so it can be the default
 - Speed: MiniCheck in bf16, and batching claims across sources
 - PDF sources
