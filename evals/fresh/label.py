@@ -38,7 +38,7 @@ from pathlib import Path
 from rich.console import Console
 from rich.panel import Panel
 
-from upheld.audit import run_audit
+from upheld.pipeline import run_audit
 from upheld.evidence import make_embedder
 from upheld.models import AuditRequest, Source, Verdict
 from upheld.verify import make_verifier

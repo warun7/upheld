@@ -1,0 +1,129 @@
+{
+  "id": "msg_01XFDUDYJgAACzvnptvVoYEL",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-sonnet-5-5",
+  "content": [
+    {
+      "type": "text",
+      "text": "I'll search for the Eiffel Tower's height and history."
+    },
+    {
+      "type": "server_tool_use",
+      "id": "srvtoolu_01WYG3ziw53XMcoyKL4XcZmE",
+      "name": "web_search",
+      "input": {
+        "query": "Eiffel Tower height"
+      }
+    },
+    {
+      "type": "web_search_tool_result",
+      "tool_use_id": "srvtoolu_01WYG3ziw53XMcoyKL4XcZmE",
+      "content": [
+        {
+          "type": "web_search_result",
+          "url": "https://www.toureiffel.paris/en/the-monument/key-figures",
+          "title": "Key figures - Eiffel Tower",
+          "encrypted_content": "EqgfCioIARgBIiQ3YTAwMjY1Mi1mZjM5...",
+          "page_age": "March 2, 2026"
+        },
+        {
+          "type": "web_search_result",
+          "url": "https://en.wikipedia.org/wiki/Eiffel_Tower",
+          "title": "Eiffel Tower - Wikipedia",
+          "encrypted_content": "EqgfCioIARgBIiQ3YTAwMjY1Mi1mZjM5...",
+          "page_age": "October 30, 2026"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "text": "Let me also check when it was built."
+    },
+    {
+      "type": "server_tool_use",
+      "id": "srvtoolu_01Hd8vLwJ6dGy3QB7cBFp2KT",
+      "name": "web_search",
+      "input": {
+        "query": "Eiffel Tower completed year"
+      }
+    },
+    {
+      "type": "web_search_tool_result",
+      "tool_use_id": "srvtoolu_01Hd8vLwJ6dGy3QB7cBFp2KT",
+      "content": [
+        {
+          "type": "web_search_result",
+          "url": "https://en.wikipedia.org/wiki/Eiffel_Tower",
+          "title": "Eiffel Tower - Wikipedia",
+          "encrypted_content": "EqgfCioIARgBIiQ3YTAwMjY1Mi1mZjM5...",
+          "page_age": "October 30, 2026"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "text": "Based on the search results, "
+    },
+    {
+      "type": "text",
+      "text": "the Eiffel Tower is 330 metres tall",
+      "citations": [
+        {
+          "type": "web_search_result_location",
+          "url": "https://www.toureiffel.paris/en/the-monument/key-figures",
+          "title": "Key figures - Eiffel Tower",
+          "encrypted_index": "Eo8BCioIAhgBIiQyYjQ0OWJmZi1lNm..",
+          "cited_text": "Height: 330 m (with antennas). Weight of the metal structure: 7,300 tonnes. Total weight: 10,100 tonnes."
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "text": ", and "
+    },
+    {
+      "type": "text",
+      "text": "it was completed in 1889 as the entrance to the World's Fair",
+      "citations": [
+        {
+          "type": "web_search_result_location",
+          "url": "https://en.wikipedia.org/wiki/Eiffel_Tower",
+          "title": "Eiffel Tower - Wikipedia",
+          "encrypted_index": "Eo8BCioIAhgBIiQyYjQ0OWJmZi1lNm..",
+          "cited_text": "Constructed from 1887 to 1889 as the centerpiece of the 1889 World's Fair, it was initially criticised by some of France's leading artists..."
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "text": ". It is the most visited paid monument in the world.\n\nIts design is credited to "
+    },
+    {
+      "type": "text",
+      "text": "Gustave Eiffel's company",
+      "citations": [
+        {
+          "type": "web_search_result_location",
+          "url": "https://en.wikipedia.org/wiki/Eiffel_Tower",
+          "title": "Eiffel Tower - Wikipedia",
+          "encrypted_index": "Eo8BCioIAhgBIiQyYjQ0OWJmZi1lNm..",
+          "cited_text": "It is named after the engineer Gustave Eiffel, whose company designed and built the tower from 1887 to 1889."
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "text": "."
+    }
+  ],
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 6039,
+    "output_tokens": 931,
+    "server_tool_use": {
+      "web_search_requests": 2
+    }
+  }
+}

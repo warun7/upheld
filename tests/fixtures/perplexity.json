@@ -1,0 +1,62 @@
+{
+  "id": "3c90c3cc-0d44-4b50-8888-8dd25736052a",
+  "model": "sonar-pro",
+  "created": 1793836800,
+  "object": "chat.completion",
+  "usage": {
+    "prompt_tokens": 12,
+    "completion_tokens": 88,
+    "total_tokens": 100,
+    "search_context_size": "low"
+  },
+  "citations": [
+    "https://www.toureiffel.paris/en/the-monument/key-figures",
+    "https://en.wikipedia.org/wiki/Eiffel_Tower",
+    "https://en.wikipedia.org/wiki/Exposition_Universelle_(1889)",
+    "https://www.britannica.com/topic/Eiffel-Tower-Paris-France"
+  ],
+  "search_results": [
+    {
+      "title": "Key figures - Eiffel Tower",
+      "url": "https://www.toureiffel.paris/en/the-monument/key-figures",
+      "date": "2026-03-02",
+      "last_updated": "2026-03-02",
+      "snippet": "...",
+      "source": "web"
+    },
+    {
+      "title": "Eiffel Tower - Wikipedia",
+      "url": "https://en.wikipedia.org/wiki/Eiffel_Tower",
+      "date": "2026-10-30",
+      "last_updated": "2026-10-30",
+      "snippet": "...",
+      "source": "web"
+    },
+    {
+      "title": "Exposition Universelle (1889) - Wikipedia",
+      "url": "https://en.wikipedia.org/wiki/Exposition_Universelle_(1889)",
+      "date": "2026-09-14",
+      "last_updated": "2026-09-14",
+      "snippet": "...",
+      "source": "web"
+    },
+    {
+      "title": "Eiffel Tower | History, Height, & Facts | Britannica",
+      "url": "https://www.britannica.com/topic/Eiffel-Tower-Paris-France",
+      "date": "2026-08-21",
+      "last_updated": "2026-08-21",
+      "snippet": "...",
+      "source": "web"
+    }
+  ],
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "stop",
+      "message": {
+        "role": "assistant",
+        "content": "The Eiffel Tower is **330 metres** tall, including its antennas[1][2]. It was completed in 1889 for the Exposition Universelle[2][3].\n\n## Upkeep\n- The tower is repainted every seven years[1].\n- It is one of the most visited monuments in the world."
+      }
+    }
+  ]
+}

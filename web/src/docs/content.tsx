@@ -43,8 +43,8 @@ const overview: DocPage = {
         mono={false}
         head={["Surface", "Use it for"]}
         rows={[
-          ["Command line", <>Spot-checking an answer you copied from ChatGPT, Perplexity, Gemini or your own tool.</>],
-          ["Python library", <>Checking a RAG pipeline's outputs in an eval suite or a test.</>],
+          ["Python library", <>Checking answers in an eval suite, a test or a pipeline: an answer with its sources, or an OpenAI, Anthropic, Perplexity or Gemini response as the API returned it.</>],
+          ["Command line", <>Spot-checking an answer you copied from ChatGPT, Perplexity, Gemini or your own tool, or a provider's response saved as JSON.</>],
           ["HTTP API", <>Gating answers before they reach a user, from any language. You run the server.</>],
         ]}
       />
@@ -62,11 +62,9 @@ const install: DocPage = {
   body: (
     <>
       <p>
-        You need Python 3.12 or newer, <A href="https://docs.astral.sh/uv/">uv</A> and git. A CPU is enough; Apple silicon and NVIDIA GPUs are used automatically when
-        present and are several times faster.
+        You need Python 3.12 or newer. A CPU is enough; Apple silicon and NVIDIA GPUs are used automatically when present and are several times faster.
       </p>
-      <Code>{`git clone ${GITHUB_URL} && cd upheld
-uv sync --extra models`}</Code>
+      <Code>{`pip install "upheld[models]"`}</Code>
       <p>
         The first audit downloads about 4 GB of models from Hugging Face into its usual cache. Pick the install that matches the verifier you want (see{" "}
         <A href="#verifiers">Pick a verifier</A>):
@@ -74,13 +72,14 @@ uv sync --extra models`}</Code>
       <Table
         head={["Command", "What it installs", "Download on first use"]}
         rows={[
-          ["uv sync", <>The core only: the <C>lexical</C> verifier and BM25 retrieval. Good for trying the pipeline.</>, "none"],
-          ["uv sync --extra models", <>The default <C>ensemble</C> verifier and hybrid retrieval.</>, "about 4 GB"],
-          ["uv sync --all-extras", <>Adds the Granite Guardian judge for <C>ensemble+judge</C> and <C>judge</C>. Builds llama.cpp from source.</>, "8.7 GB more"],
+          ["pip install upheld", <>The core only: the <C>lexical</C> verifier and BM25 retrieval. Good for trying the pipeline.</>, "none"],
+          ['pip install "upheld[models]"', <>The default <C>ensemble</C> verifier and hybrid retrieval.</>, "about 4 GB"],
+          ['pip install "upheld[models,judge]"', <>Adds the Granite Guardian judge for <C>ensemble+judge</C> and <C>judge</C>. Builds llama.cpp from source.</>, "8.7 GB more"],
         ]}
       />
       <p>
-        To use upheld as a library from another project, add it straight from GitHub: <C>uv add "upheld[models] @ git+{GITHUB_URL}"</C>.
+        With uv, <C>uv add "upheld[models]"</C>. To run the repo's examples, evals and tests, clone it instead: <C>git clone {GITHUB_URL} && cd upheld && uv sync --extra models</C>,
+        or <C>--all-extras</C> for the judge.
       </p>
     </>
   ),
@@ -91,25 +90,124 @@ const quickstart: DocPage = {
   title: "Quickstart",
   body: (
     <>
-      <p>The repo ships two example answers. From the clone:</p>
-      <Code>{`# source text included in the file, so nothing is fetched
-uv run upheld audit examples/glp1.json
+      <p>Give <C>upheld.audit</C> an answer with <C>[1]</C>-style markers and the sources it cites, in order:</p>
+      <Code label="python">{`import upheld
 
-# a markdown answer with a reference list; fetches the cited Wikipedia pages
-uv run upheld audit examples/eiffel.md
+report = upheld.audit("The Eiffel Tower is 330 metres tall [1]. It was designed by Frank Lloyd Wright [1].", ["https://en.wikipedia.org/wiki/Eiffel_Tower"])
+for claim in report.claims:
+    print(claim.verdict, claim.text)`}</Code>
+      <Code label="output">{`supported The Eiffel Tower is 330 metres tall.
+unsupported It was designed by Frank Lloyd Wright.`}</Code>
+      <p>
+        A source is a URL to fetch, or the source's text itself. The report has a verdict, a support score and the evidence for every claim (see{" "}
+        <A href="#report">Report format</A>). To audit what OpenAI, Anthropic, Perplexity or Gemini returned, pass the response itself: see{" "}
+        <A href="#providers">Audit a provider's response</A>.
+      </p>
+      <p>From the command line, with an answer saved as markdown:</p>
+      <Code>{`upheld audit answer.md
 
 # the full report as JSON
-uv run upheld audit examples/eiffel.md --json`}</Code>
+upheld audit answer.md --json`}</Code>
       <p>
         The first line of the output names the verifier and retrieval, then counts how many cited claims are supported. Below that, a table lists each claim with its
         verdict, and for each citation its own verdict, support score, any names missing from the source and the flagged words. A second table lists each source
         and whether it could be read.
       </p>
       <p>
-        <C>examples/eiffel.md</C> plants two errors. The claim that Frank Lloyd Wright led the design comes back <C>unsupported</C>, with his name listed as missing
-        from the source. The citation to a repainting-schedule page comes back <C>source_missing</C>: the URL is a 404 that was never archived. It also flags one
-        true claim, that the tower was meant to stand for only 20 years, because the page never says 20 years; that's one of the{" "}
+        The repo ships two examples. <C>examples/eiffel.md</C> plants two errors. The claim that Frank Lloyd Wright led the design comes back <C>unsupported</C>, with
+        his name listed as missing from the source. The citation to a repainting-schedule page comes back <C>source_missing</C>: the URL is a 404 that was never
+        archived. It also flags one true claim, that the tower was meant to stand for only 20 years, because the page never says 20 years; that's one of the{" "}
         <A href="/#limits">known failure modes</A>.
+      </p>
+    </>
+  ),
+};
+
+const providers: DocPage = {
+  id: "providers",
+  title: "Audit a provider's response",
+  body: (
+    <>
+      <p>
+        Hand upheld the response your code already gets from OpenAI, Anthropic, Perplexity or Gemini with web search on. It reads the provider's own citation data, so
+        there's nothing to reformat:
+      </p>
+      <Code label="python">{`import upheld
+from openai import OpenAI
+
+question = "How tall is the Eiffel Tower?"
+response = OpenAI().responses.create(model="gpt-6-astra", tools=[{"type": "web_search"}], input=question)
+report = upheld.audit(response, question=question)
+print(f"{report.summary.supported_claims} of {report.summary.cited_claims} cited claims supported")`}</Code>
+      <p>The other providers' responses go in the same way:</p>
+      <Code label="python">{`import anthropic
+from google import genai
+from perplexity import Perplexity
+
+# Anthropic: Messages with the web search tool
+message = anthropic.Anthropic().messages.create(
+    model="claude-sonnet-5-5",
+    max_tokens=2048,
+    messages=[{"role": "user", "content": question}],
+    tools=[{"type": "web_search_20250305", "name": "web_search"}],
+)
+report = upheld.audit(message, question=question)
+
+# Gemini: Google Search grounding, from the Interactions API or generate_content
+interaction = genai.Client().interactions.create(model="gemini-3.8-flash", input=question, tools=[{"type": "google_search"}])
+report = upheld.audit(interaction, question=question)
+
+# Perplexity: the Agent API, or Sonar
+response = Perplexity().responses.create(effort="low", input=question)
+report = upheld.audit(response, question=question)`}</Code>
+      <p>
+        A response can be the SDK's object, its JSON as a dict, or a JSON string. upheld tells the provider from its shape; <C>provider="gemini"</C> names it.{" "}
+        <C>upheld.from_openai(response)</C>, and likewise <C>from_anthropic</C>, <C>from_perplexity</C> and <C>from_gemini</C>, return the <C>AuditRequest</C> upheld
+        builds, so you can see the claims and sources before auditing.
+      </p>
+      <Table
+        mono={false}
+        head={["Response", "What upheld reads", "What it checks as a claim"]}
+        rows={[
+          [
+            "OpenAI Responses API, or Chat Completions with web search",
+            <><C>url_citation</C> annotations: the URL, its title, and the range of the link the model wrote.</>,
+            <>Sentences. OpenAI's range covers the link after a claim, not the claim, so the link becomes a <C>[n]</C> marker. <C>utm_source=openai</C> is dropped from the URLs so the Wayback Machine can find them.</>,
+          ],
+          [
+            "Anthropic Messages with web search",
+            <>Text blocks whose <C>citations</C> hold <C>web_search_result_location</C> entries.</>,
+            <>Each cited block. Claude's narration of its searches, before the first cited block, is left out.</>,
+          ],
+          [
+            "Perplexity Agent API or Sonar",
+            <><C>[1]</C> or <C>[web:1]</C> markers, numbered into <C>search_results</C> (or Sonar's older <C>citations</C>).</>,
+            <>Sentences, split at the markers.</>,
+          ],
+          [
+            "Gemini generate_content with Google Search",
+            <><C>groundingSupports</C>: byte ranges of the text, each with indices into <C>groundingChunks</C>.</>,
+            <>Each range. The chunks' URLs are Google redirects, which upheld follows; the source's <C>resolved_url</C> is the page each led to.</>,
+          ],
+          ["Gemini Interactions API", <><C>url_citation</C> annotations over the cited text.</>, <>Each annotated range.</>],
+        ]}
+      />
+      <p>
+        A cited range too short to be a claim on its own, such as a name, is widened to the sentence it's in. Sentences outside every cited range are still reported,
+        as <C>uncited</C> when they read as claims. Claim offsets refer to the answer text upheld assembled, <C>upheld.from_…(response).answer</C>.
+      </p>
+      <Note>
+        Gemini's redirect links stop working after a while, so audit a Gemini response soon after you get it. An expired link is reported <C>unverifiable</C>, since
+        the page it pointed to is unknown.
+      </Note>
+      <H3>From the command line and over HTTP</H3>
+      <Code>{`# a response saved as JSON; --from auto (the default) tells the providers apart
+upheld audit response.json --from openai
+
+# with upheld serve running
+curl -s localhost:8000/audit/auto -H 'content-type: application/json' -d @response.json`}</Code>
+      <p>
+        <C>--from</C> takes <C>openai</C>, <C>anthropic</C>, <C>perplexity</C>, <C>gemini</C> or <C>auto</C>, and so does the path of <C>POST /audit/{"{provider}"}</C>.
       </p>
     </>
   ),
@@ -140,10 +238,10 @@ const auditAnswer: DocPage = {
 Sources:
 [1] Eiffel Tower - https://en.wikipedia.org/wiki/Eiffel_Tower
 [2] Exposition Universelle (1889) - https://en.wikipedia.org/wiki/Exposition_Universelle_(1889)`}</Code>
-      <Code>{`uv run upheld audit answer.md --question "How tall is the Eiffel Tower?"
+      <Code>{`upheld audit answer.md --question "How tall is the Eiffel Tower?"
 
 # or straight from the clipboard on macOS
-pbpaste | uv run upheld audit -`}</Code>
+pbpaste | upheld audit -`}</Code>
       <p>
         <C>--question</C> is optional. LettuceDetect, one of the default verifier's three signals, reads it as context.
       </p>
@@ -162,35 +260,34 @@ const python: DocPage = {
   body: (
     <>
       <p>
-        If your pipeline already has the retrieved documents, pass their text in and turn fetching off, so the audit is fast, repeatable and offline. The answer's
-        markers must match the source ids.
+        If your pipeline already has the retrieved documents, pass their text as the sources, so the audit is fast, repeatable and offline: a source given as text is
+        never fetched. The answer's <C>[1]</C>, <C>[2]</C> markers cite the documents in order.
       </p>
-      <Code label="python">{`import asyncio
-from upheld import AuditRequest, Source, Verdict, make_verifier, run_audit
-from upheld.evidence import make_embedder
+      <Code label="python">{`import upheld
+from upheld import Verdict
 
-# Load once and reuse: these hold the models.
-verifier = make_verifier("ensemble")
-embedder = make_embedder("auto")  # hybrid retrieval if installed, else BM25
+# Loads the models once; keep it and reuse it.
+auditor = upheld.Auditor()  # verifier="ensemble", retrieval="auto"
 
 
-async def unsupported_claims(answer: str, docs: list[str]) -> list[str]:
-    req = AuditRequest(
-        answer=answer,
-        sources=[Source(id=str(i + 1), text=d) for i, d in enumerate(docs)],
-    )
-    report = await run_audit(req, verifier, embedder=embedder, fetch=False)
+def unsupported_claims(answer: str, docs: list[str]) -> list[str]:
+    report = auditor.audit(answer, docs)
     return [c.text for c in report.claims if c.cited and c.verdict != Verdict.SUPPORTED]
 
 
-bad = asyncio.run(unsupported_claims(
+bad = unsupported_claims(
     "Semaglutide led to an average weight loss of 14.9% [1].",
     ["In the STEP 1 trial, the mean change in body weight was -14.9% ..."],
-))
+)
 print(bad)`}</Code>
       <p>
-        <C>run_audit</C> returns an <C>AuditReport</C> (a pydantic model, see <A href="#report">Report format</A>). Without an <C>embedder</C> it ranks passages
-        with BM25 alone, which misses paraphrases more often.
+        <C>auditor.audit</C> returns an <C>AuditReport</C> (a pydantic model, see <A href="#report">Report format</A>). In async code, such as a web server, use{" "}
+        <C>await auditor.audit_async(...)</C>. <C>upheld.audit()</C> does the same in one call and keeps the models from its last call loaded. A source can also be a{" "}
+        <C>Source</C> or a dict, and a string starting with <C>http://</C> or <C>https://</C> is a URL to fetch.
+      </p>
+      <p>
+        <C>run_audit(request, verifier, embedder=...)</C>, the async function underneath, takes an <A href="#input">AuditRequest</A> and a verifier from{" "}
+        <C>make_verifier()</C>, for full control.
       </p>
       <H3>Using it as a test</H3>
       <p>
@@ -210,7 +307,7 @@ const http: DocPage = {
       <p>
         <C>upheld serve</C> runs a small API that loads the models once and keeps them warm. Call it from any language.
       </p>
-      <Code>{`uv run upheld serve --port 8000
+      <Code>{`upheld serve --port 8000
 
 curl -s localhost:8000/health
 
@@ -223,6 +320,10 @@ curl -s localhost:8000/audit -H 'content-type: application/json' -d '{
         rows={[
           ["GET /health", <>Returns <C>status</C>, <C>verifier</C> and <C>retrieval</C> once the models are loaded.</>],
           ["POST /audit", <>Takes an <A href="#input">AuditRequest</A> and returns an <A href="#report">AuditReport</A>. Invalid input gets a 422 with the reason.</>],
+          [
+            "POST /audit/{provider}",
+            <>Takes an OpenAI, Anthropic, Perplexity or Gemini response as its body, with <C>auto</C> or the provider's name in the path and an optional <C>?question=</C>. See <A href="#providers">Audit a provider's response</A>.</>,
+          ],
           ["GET /openapi.json", <>The schema, for generating a client. <C>/redoc</C> renders it.</>],
         ]}
       />
@@ -245,7 +346,7 @@ const verifiers: DocPage = {
     <>
       <p>
         The verifier decides whether the passages retrieved for a claim back it. Choose one with <C>--verifier</C> on <C>audit</C>, <C>eval</C> and <C>serve</C>,
-        or by name with <C>make_verifier()</C>. Scores are macro-F1 on AttributionBench's in-distribution test sets, for the verifier alone (the entity check
+        with <C>verifier=</C> in <C>upheld.audit()</C> and <C>upheld.Auditor()</C>, or by name with <C>make_verifier()</C>. Scores are macro-F1 on AttributionBench's in-distribution test sets, for the verifier alone (the entity check
         costs about two points there and catches swapped names elsewhere).
       </p>
       <Table
@@ -302,7 +403,7 @@ const evaluate: DocPage = {
         <C>evidence</C> is a passage or a list of them. <C>label</C> is <C>supported</C> or <C>unsupported</C>. <C>answer</C>, if given, must contain the claim
         word for word; LettuceDetect reads the whole answer, so it does better with it. <C>question</C> is optional.
       </p>
-      <Code>{`uv run upheld eval labels.jsonl --verifier ensemble`}</Code>
+      <Code>{`upheld eval labels.jsonl --verifier ensemble`}</Code>
       <p>
         The output is a threshold sweep: precision, recall and F1 for flagging unsupported claims, macro-F1, accuracy and the share flagged at each threshold, with the
         verifier's default in bold. Pick the row that suits you and pass it as <C>--threshold</C>.
@@ -347,8 +448,8 @@ const input: DocPage = {
   body: (
     <>
       <p>
-        The CLI reads a <C>.json</C> file as an <C>AuditRequest</C>, and anything else as the answer text. <C>POST /audit</C> and <C>run_audit()</C> take the same
-        request.
+        The CLI reads a <C>.json</C> file as an <C>AuditRequest</C> or a <A href="#providers">provider's response</A>, and anything else as the answer text.{" "}
+        <C>POST /audit</C>, <C>upheld.audit()</C> and <C>run_audit()</C> take the same request.
       </p>
       <Code label="json">{`{
   "question": "How much weight do people lose on Ozempic?",
@@ -368,6 +469,11 @@ const input: DocPage = {
           ["sources[].text", "string, optional", "The source's text. When present, it's used as given and the URL isn't fetched."],
           ["sources[].url", "string, optional", "Fetched when there's no text. Capped at 5 MB. A page that's dead or can't be read is read from its newest Wayback Machine copy instead."],
           ["sources[].title", "string, optional", "For your own reference."],
+          [
+            "cited_spans",
+            "list, optional",
+            <>Character ranges of the answer marked as cited, <C>{'{"start": 0, "end": 40, "cited": ["1"]}'}</C>. Each is checked as one claim, in place of the sentences it overlaps. Filled in from a provider's response; up to 500.</>,
+          ],
         ]}
       />
     </>
@@ -380,7 +486,7 @@ const report: DocPage = {
   body: (
     <>
       <p>
-        <C>--json</C>, <C>POST /audit</C> and <C>run_audit()</C> all return the same report. This one is from the Eiffel Tower answer on the{" "}
+        <C>--json</C>, <C>POST /audit</C>, <C>upheld.audit()</C> and <C>run_audit()</C> all return the same report. This one is from the Eiffel Tower answer on the{" "}
         <A href="/#demo">home page</A>, trimmed to one claim:
       </p>
       <Code label="json">{`{
@@ -406,22 +512,23 @@ const report: DocPage = {
     }
   ],
   "sources": [
-    {"id": "1", "url": "https://en.wikipedia.org/wiki/Eiffel_Tower", "status": "live", "http_status": 200, "chars": 65753, "note": null,
-     "archived_at": null, "archive_url": null},
-    {"id": "2", "url": "https://en.wikipedia.org/wiki/Eiffel_Tower_repainting_schedule", "status": "likely_fabricated", "http_status": 404, "chars": 0,
-     "note": "HTTP 404; never archived", "archived_at": null, "archive_url": null}
+    {"id": "1", "url": "https://en.wikipedia.org/wiki/Eiffel_Tower", "resolved_url": null, "status": "live", "http_status": 200, "chars": 65753,
+     "note": null, "archived_at": null, "archive_url": null},
+    {"id": "2", "url": "https://en.wikipedia.org/wiki/Eiffel_Tower_repainting_schedule", "resolved_url": null, "status": "likely_fabricated",
+     "http_status": 404, "chars": 0, "note": "HTTP 404; never archived", "archived_at": null, "archive_url": null}
   ]
 }`}</Code>
       <Table
         head={["Field", "Meaning"]}
         rows={[
           ["verifier, retrieval", "What produced this report, threshold included. Scores aren't comparable across verifiers."],
-          ["claims[].start, end", "Character offsets of the claim's sentence in the original answer, for highlighting."],
+          ["claims[].start, end", "Character offsets of the claim in the answer, for highlighting. For a provider's response, in the answer text upheld assembled from it."],
           ["claims[].verdict", <>The best verdict among the claim's citations. A claim whose citations each fail is re-checked against them together, for facts that span two sources.</>],
           ["checks[]", "One per citation: that source's verdict, the support score (0 to 1), and the passages it was judged against."],
           ["unsupported_spans", "Character offsets within the claim text of the words the source doesn't back."],
           ["missing_entities", <>Names in the claim that appear nowhere in the source. When the score would otherwise pass, they make the verdict <C>wrong_entity</C>.</>],
           ["sources[].status", <>Whether each cited source could be read. See <A href="#verdicts">link statuses</A>.</>],
+          ["sources[].resolved_url", "Where the URL redirected to, if it did. Gemini cites pages through Google redirect links, and this is the page."],
           ["sources[].archived_at, archive_url", <>Set when the text came from a Wayback Machine copy: when the copy was taken, and where to see it. Each check against that source says so in its <C>note</C>.</>],
         ]}
       />
@@ -469,16 +576,21 @@ const cli: DocPage = {
   body: (
     <>
       <p>
-        Run with <C>uv run upheld</C> from the clone, or <C>upheld</C> wherever it's installed. <C>--help</C> on any command lists the same options.
+        Run <C>upheld</C> wherever it's installed, or <C>uv run upheld</C> from a clone. <C>--help</C> on any command lists the same options.
       </p>
       <H3>upheld audit PATH</H3>
       <p>
-        Audit one answer. <C>PATH</C> is a <C>.json</C> request, a markdown or text answer, or <C>-</C> for stdin.
+        Audit one answer. <C>PATH</C> is a <C>.json</C> request or provider response, a markdown or text answer, or <C>-</C> for stdin.
       </p>
       <Table
         head={["Option", "Default", "Does"]}
         rows={[
-          ["--question TEXT", <>none</>, "The question the answer responds to, for text input."],
+          ["--question TEXT", <>none</>, "The question the answer responds to."],
+          [
+            "--from NAME",
+            <C>auto</C>,
+            <>Whose API response the JSON is: <C>openai</C>, <C>anthropic</C>, <C>perplexity</C> or <C>gemini</C>. <C>auto</C> tells them apart, and reads JSON with an <C>answer</C> as an AuditRequest.</>,
+          ],
           ["--verifier NAME", <C>ensemble</C>, <>See <A href="#verifiers">Pick a verifier</A>.</>],
           ["--threshold FLOAT", <>the verifier's</>, "Support score below this counts as unsupported."],
           ["--retrieval NAME", <C>auto</C>, <><C>auto</C>, <C>hybrid</C> or <C>bm25</C>.</>],
@@ -554,6 +666,7 @@ const troubleshooting: DocPage = {
           ["A localhost URL is refused.", <>Private addresses are blocked by default. Pass <C>--allow-private</C> on the CLI.</>],
           ["It's too slow on CPU.", <>Try <C>--verifier minicheck</C>, or <C>--verifier lexical --retrieval bm25</C> to skip the models entirely.</>],
           ["A true claim is flagged.", <>Usually a one-step inference ("-14.9% change" vs "14.9% loss") or retrieval picking the wrong part of a long page. <C>--verifier ensemble+judge</C> handles both better: it reads 10 passages per claim and flags about half as many good citations.</>],
+          ["A Gemini source says its redirect link no longer resolves.", <>Gemini's source links are redirects that expire. Audit Gemini responses soon after you get them.</>],
           ["Every claim is source_missing.", <>The reference list didn't survive the copy. Check that the markers' numbers match a list at the end, or pass the sources in JSON.</>],
         ]}
       />
@@ -572,6 +685,6 @@ const troubleshooting: DocPage = {
 
 export const DOCS: { group: string; pages: DocPage[] }[] = [
   { group: "Getting started", pages: [overview, install, quickstart] },
-  { group: "Guides", pages: [auditAnswer, python, http, verifiers, evaluate, selfHost] },
+  { group: "Guides", pages: [providers, auditAnswer, python, http, verifiers, evaluate, selfHost] },
   { group: "Reference", pages: [input, report, verdicts, cli, howItWorks, troubleshooting] },
 ];

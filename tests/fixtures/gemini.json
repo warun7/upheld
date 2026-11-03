@@ -1,0 +1,95 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "role": "model",
+        "parts": [
+          {
+            "text": "The Eiffel Tower stands 330 metres tall on the Champ de Mars in Paris. It was designed by Gustave Eiffel’s engineering company and completed in 1889 for the Exposition Universelle. The tower — once criticised by artists — is now a global icon of France."
+          }
+        ]
+      },
+      "finishReason": "STOP",
+      "groundingMetadata": {
+        "webSearchQueries": [
+          "Eiffel Tower height",
+          "Eiffel Tower designer completed"
+        ],
+        "searchEntryPoint": {
+          "renderedContent": "<style>.container { align-items: center; }</style><div class=\"container\">...</div>"
+        },
+        "groundingChunks": [
+          {
+            "web": {
+              "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGcTq8x2xZr9kF0bHkE4yL7mNw1",
+              "title": "toureiffel.paris"
+            }
+          },
+          {
+            "web": {
+              "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHbX0aQ4mK8rT2vZ9pE1sW6cJd3",
+              "title": "wikipedia.org"
+            }
+          },
+          {
+            "web": {
+              "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFm7Lq2Ns5Rx8Ty0Wb3Ke6Hd9Pa",
+              "title": "britannica.com"
+            }
+          }
+        ],
+        "groundingSupports": [
+          {
+            "segment": {
+              "endIndex": 70,
+              "text": "The Eiffel Tower stands 330 metres tall on the Champ de Mars in Paris."
+            },
+            "groundingChunkIndices": [
+              0,
+              2
+            ],
+            "confidenceScores": [
+              0.97,
+              0.91
+            ]
+          },
+          {
+            "segment": {
+              "startIndex": 71,
+              "endIndex": 182,
+              "text": "It was designed by Gustave Eiffel’s engineering company and completed in 1889 for the Exposition Universelle."
+            },
+            "groundingChunkIndices": [
+              1
+            ],
+            "confidenceScores": [
+              0.95
+            ]
+          },
+          {
+            "segment": {
+              "startIndex": 228,
+              "endIndex": 258,
+              "text": "is now a global icon of France"
+            },
+            "groundingChunkIndices": [
+              2
+            ],
+            "confidenceScores": [
+              0.82
+            ]
+          }
+        ],
+        "retrievalMetadata": {}
+      },
+      "avgLogprobs": -0.21
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 9,
+    "candidatesTokenCount": 61,
+    "totalTokenCount": 70
+  },
+  "modelVersion": "gemini-3.8-flash",
+  "responseId": "Xj8uaZvKCo2Fm9cPzqXr8QQ"
+}

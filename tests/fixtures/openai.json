@@ -1,0 +1,59 @@
+{
+  "id": "resp_67ccd2bed1ec8190b14f964abc0542670bb6a6b452d3795b",
+  "object": "response",
+  "created_at": 1793836800,
+  "status": "completed",
+  "model": "gpt-6-luna",
+  "output": [
+    {
+      "type": "web_search_call",
+      "id": "ws_67ccd2bf6b6c81909e5b2e4f2a6e1f3a",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Eiffel Tower height completed 1889 repainting"
+      }
+    },
+    {
+      "type": "message",
+      "id": "msg_67ccd2c0a9cc8190b7e5d6c4bb0d7f12",
+      "status": "completed",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "The Eiffel Tower is 330 metres tall, including its antennas. ([toureiffel.paris](https://www.toureiffel.paris/en/the-monument/key-figures?utm_source=openai)) It was completed in 1889 as the entrance arch to the World's Fair. ([en.wikipedia.org](https://en.wikipedia.org/wiki/Eiffel_Tower?utm_source=openai))\n\nThe tower is repainted every seven years, using about 60 tonnes of paint. ([toureiffel.paris](https://www.toureiffel.paris/en/the-monument/key-figures?utm_source=openai))\n\nTickets can be bought online or at the tower itself.",
+          "annotations": [
+            {
+              "type": "url_citation",
+              "start_index": 61,
+              "end_index": 157,
+              "url": "https://www.toureiffel.paris/en/the-monument/key-figures?utm_source=openai",
+              "title": "Key figures - Eiffel Tower"
+            },
+            {
+              "type": "url_citation",
+              "start_index": 225,
+              "end_index": 307,
+              "url": "https://en.wikipedia.org/wiki/Eiffel_Tower?utm_source=openai",
+              "title": "Eiffel Tower - Wikipedia"
+            },
+            {
+              "type": "url_citation",
+              "start_index": 383,
+              "end_index": 479,
+              "url": "https://www.toureiffel.paris/en/the-monument/key-figures?utm_source=openai",
+              "title": "Key figures - Eiffel Tower"
+            }
+          ],
+          "logprobs": []
+        }
+      ]
+    }
+  ],
+  "usage": {
+    "input_tokens": 3120,
+    "output_tokens": 96,
+    "total_tokens": 3216
+  }
+}

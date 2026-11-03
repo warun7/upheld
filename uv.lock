@@ -2189,6 +2189,7 @@ source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
     { name = "httpx" },
+    { name = "numpy" },
     { name = "pydantic" },
     { name = "pypdf" },
     { name = "rank-bm25" },
@@ -2233,6 +2234,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "lettucedetect", marker = "extra == 'lettuce'", specifier = ">=0.2.3" },
     { name = "llama-cpp-python", marker = "extra == 'judge'", specifier = ">=0.3.36" },
+    { name = "numpy", specifier = ">=1.26" },
     { name = "pydantic", specifier = ">=2.14.2" },
     { name = "pypdf", specifier = ">=6.21.4" },
     { name = "rank-bm25", specifier = ">=0.2.2" },

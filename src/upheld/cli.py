@@ -1,4 +1,5 @@
 import asyncio
+import json
 import sys
 from pathlib import Path
 from typing import Annotated
@@ -7,10 +8,12 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from upheld.audit import run_audit
+from upheld.auditor import to_request
 from upheld.evals import load_examples, metrics_at, score_examples
 from upheld.evidence import make_embedder
 from upheld.models import AuditReport, AuditRequest, Verdict
+from upheld.pipeline import run_audit
+from upheld.providers import Provider
 from upheld.verify import make_verifier
 
 app = typer.Typer(no_args_is_help=True, help="Check whether an AI answer's citations actually support its claims.")
@@ -39,8 +42,18 @@ RetrievalOpt = Annotated[
 
 @app.command()
 def audit(
-    path: Annotated[Path, typer.Argument(help="Answer as .json (AuditRequest), or markdown/text with a reference list. Use - for stdin.")],
-    question: Annotated[str | None, typer.Option(help="The question the answer responds to (text input only).")] = None,
+    path: Annotated[
+        Path,
+        typer.Argument(help="Answer as .json (an AuditRequest, or a provider's response), or markdown/text with a reference list. Use - for stdin."),
+    ],
+    question: Annotated[str | None, typer.Option(help="The question the answer responds to.")] = None,
+    provider: Annotated[
+        Provider,
+        typer.Option(
+            "--from",
+            help="Whose API response the JSON is: openai, anthropic, perplexity or gemini. auto tells them apart by shape, and reads JSON with an `answer` as an AuditRequest.",
+        ),
+    ] = Provider.AUTO,
     verifier: VerifierOpt = "ensemble",
     threshold: ThresholdOpt = None,
     retrieval: RetrievalOpt = "auto",
@@ -50,10 +63,14 @@ def audit(
 ) -> None:
     """Audit one answer."""
     text = sys.stdin.read() if str(path) == "-" else path.read_text()
-    if path.suffix == ".json":
-        req = AuditRequest.model_validate_json(text)
-    else:
-        req = AuditRequest(answer=text, question=question)
+    try:
+        if path.suffix == ".json" or provider != Provider.AUTO or (str(path) == "-" and text.lstrip().startswith("{")):
+            req = to_request(json.loads(text), question=question, provider=provider)
+        else:
+            req = AuditRequest(answer=text, question=question)
+    except ValueError as e:  # bad JSON, or not a response upheld can read
+        console.print(f"[red]error:[/] {e}")
+        raise typer.Exit(1) from e
     report = asyncio.run(
         run_audit(
             req, make_verifier(verifier, threshold), embedder=make_embedder(retrieval), fetch=fetch, allow_private=allow_private
@@ -146,5 +163,6 @@ def render(report: AuditReport) -> None:
     for col in ("id", "status", "url / note"):
         sources.add_column(col)
     for src in report.sources:
-        sources.add_row(src.id, src.status.value, " · ".join(x for x in (src.url, src.note) if x))
+        resolved = f"→ {src.resolved_url}" if src.resolved_url else None
+        sources.add_row(src.id, src.status.value, " · ".join(x for x in (src.url, resolved, src.note) if x))
     console.print(sources)

@@ -17,7 +17,7 @@ from upheld.models import (
     Summary,
     Verdict,
 )
-from upheld.parse import Claim, extract_reference_list, is_claim, split_claims
+from upheld.parse import Claim, extract_reference_list, is_claim, split_claims, with_cited_spans
 from upheld.sources import FetchedSource, fetch_all
 from upheld.verify import SupportResult, Verifier
 
@@ -38,6 +38,8 @@ async def run_audit(
     """top_k (evidence passages per claim) defaults to what the verifier was tuned with."""
     body, listed = extract_reference_list(req.answer)
     parsed, linked = split_claims(body)
+    if req.cited_spans:
+        parsed = with_cited_spans(req.answer, parsed, req.cited_spans)
     claims = [c for c in parsed if c.cited or is_claim(c.text)]
 
     sources: dict[str, Source] = {}
@@ -199,6 +201,7 @@ def _source_report(f: FetchedSource) -> SourceReport:
     return SourceReport(
         id=f.source.id,
         url=f.source.url,
+        resolved_url=f.resolved_url,
         status=f.status,
         http_status=f.http_status,
         chars=len(f.text),

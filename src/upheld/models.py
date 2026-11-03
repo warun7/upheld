@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import StrEnum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class Source(BaseModel):
@@ -11,10 +11,29 @@ class Source(BaseModel):
     text: str | None = Field(default=None, description="Source text. If omitted, it is fetched from `url`.")
 
 
+class CitedSpan(BaseModel):
+    start: int = Field(ge=0)
+    end: int
+    cited: list[str] = Field(min_length=1, description="Ids of the sources the span cites.")
+
+
 class AuditRequest(BaseModel):
     question: str | None = Field(default=None, max_length=2_000)
     answer: str = Field(max_length=50_000)
     sources: list[Source] = Field(default_factory=list, max_length=50)
+    cited_spans: list[CitedSpan] = Field(
+        default_factory=list,
+        max_length=500,
+        description="Character ranges of the answer that a provider marked as cited. Each is checked as one claim, "
+        "in place of the sentences it overlaps; the rest of the answer is split into sentences as usual.",
+    )
+
+    @model_validator(mode="after")
+    def _spans_in_answer(self) -> "AuditRequest":
+        for span in self.cited_spans:
+            if not span.start < span.end <= len(self.answer):
+                raise ValueError(f"cited span {span.start}-{span.end} is outside the answer ({len(self.answer)} characters)")
+        return self
 
 
 class LinkStatus(StrEnum):
@@ -73,6 +92,7 @@ class ClaimResult(BaseModel):
 class SourceReport(BaseModel):
     id: str
     url: str | None
+    resolved_url: str | None = Field(default=None, description="Where the URL redirected to, if it did.")
     status: LinkStatus
     http_status: int | None = None
     chars: int = 0

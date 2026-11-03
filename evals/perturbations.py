@@ -33,7 +33,7 @@ from pathlib import Path
 from attributionbench import RESULTS, load_split
 from wordfreq import zipf_frequency
 
-from upheld.audit import run_audit
+from upheld.pipeline import run_audit
 from upheld.entities import COMMON_ZIPF, _present, missing_entities, named_entities
 from upheld.models import AuditRequest, Source, Verdict
 from upheld.parse import split_claims

@@ -1,0 +1,52 @@
+# Publishes to PyPI when a version tag such as v0.1.0 is pushed.
+# PyPI trusts this workflow through trusted publishing, so no token is stored
+# anywhere. RELEASING.md has the one-time setup.
+name: Publish to PyPI
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
+      - name: Check the tag matches the version
+        run: |
+          version="$(uv version --short)"
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "Tag $GITHUB_REF_NAME doesn't match version $version in pyproject.toml"
+            exit 1
+          fi
+      - run: uv sync --locked
+      - run: uv run pytest -q
+      - run: uv build
+      - name: Audit an example with the built wheel, outside the project
+        run: |
+          cd "$RUNNER_TEMP"
+          uv run --isolated --no-project --with "$GITHUB_WORKSPACE"/dist/*.whl \
+            upheld audit "$GITHUB_WORKSPACE/examples/glp1.json" --verifier lexical --retrieval bm25
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/upheld
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1

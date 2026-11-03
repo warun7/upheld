@@ -4,8 +4,7 @@ import { GithubMark } from "../components/icons";
 import { CopyBar, LinkButton, Section, Ticker } from "../components/ui";
 import { GITHUB_URL, PRIMARY_CTA } from "../lib/site";
 
-const QUICKSTART =
-  "git clone https://github.com/warun7/upheld && cd upheld && uv sync --extra models && uv run upheld audit examples/eiffel.md";
+const QUICKSTART = 'pip install "upheld[models]"';
 
 /** Words rise out of a mask one after another. */
 function Rise({ text, delay, className = "" }: { text: string; delay: number; className?: string }) {

@@ -37,6 +37,8 @@ GONE = {404, 410}
 MIN_TEXT_CHARS = 300
 # Archive lookups and fetches in flight at once per audit, to stay well inside the Wayback Machine's rate limits.
 ARCHIVE_CONCURRENCY = 4
+# Gemini cites pages through redirect links on this host, which expire after a while.
+GEMINI_REDIRECT_HOST = "vertexaisearch.cloud.google.com"
 
 
 @dataclass
@@ -48,6 +50,7 @@ class FetchedSource:
     note: str | None = None
     archived_at: datetime | None = None  # set when the text comes from an archived copy
     archive_url: str | None = None
+    resolved_url: str | None = None  # where the URL redirected to, if it did
 
 
 class BlockedURL(ValueError):
@@ -167,7 +170,7 @@ async def fetch_source(
     if not source.url:
         return FetchedSource(source, LinkStatus.UNREACHABLE, note="no URL or text given")
 
-    http_status, dead = None, False
+    http_status, dead, resolved = None, False, None
     try:
         response, body = await _get_capped(client, source.url)
     except UnknownHost as e:
@@ -178,6 +181,11 @@ async def fetch_source(
         reason = f"request failed: {type(e).__name__}"
     else:
         http_status = response.status_code
+        if str(response.url) != str(httpx.URL(source.url)):
+            resolved = str(response.url)
+        if urlparse(str(response.url)).hostname == GEMINI_REDIRECT_HOST and http_status >= 400:
+            note = f"HTTP {http_status}: Gemini's redirect link no longer resolves (they expire), so the cited page is unknown"
+            return FetchedSource(source, LinkStatus.UNREACHABLE, http_status=http_status, note=note)
         if http_status in GONE:
             reason, dead = f"HTTP {http_status}", True
         elif http_status >= 400:
@@ -185,11 +193,15 @@ async def fetch_source(
         else:
             text, problem = await _extract(response, body, str(response.url))
             if problem:
-                return FetchedSource(source, LinkStatus.UNREACHABLE, http_status=http_status, note=problem)
+                return FetchedSource(source, LinkStatus.UNREACHABLE, http_status=http_status, note=problem, resolved_url=resolved)
             if not (reason := _stand_in(text)):
-                return FetchedSource(source, LinkStatus.LIVE, text, http_status=http_status)
+                return FetchedSource(source, LinkStatus.LIVE, text, http_status=http_status, resolved_url=resolved)
+    # The Wayback Machine has the page a Gemini redirect leads to, not the redirect.
+    archived = resolved if resolved and urlparse(source.url).hostname == GEMINI_REDIRECT_HOST else source.url
     async with archive_slots or nullcontext():
-        return await _from_archive(client, source, source.url, http_status, reason, dead)
+        fetched = await _from_archive(client, source, archived, http_status, reason, dead)
+    fetched.resolved_url = resolved
+    return fetched
 
 
 async def _from_archive(client: httpx.AsyncClient, source: Source, url: str, http_status: int | None, reason: str, dead: bool) -> FetchedSource:

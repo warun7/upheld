@@ -10,9 +10,10 @@ One engine, several ways in. They all call the same `run_audit()`.
 
 | Surface | Who it's for | Status |
 |---|---|---|
-| **Python library + CLI** | Developers checking answers locally. Runs on a laptop (CPU, Apple or NVIDIA GPU), no API key, nothing leaves your machine except fetching the cited pages. | Working |
-| **HTTP API** (`upheld serve`) | RAG builders: audit your pipeline's outputs in CI or as a guardrail before showing an answer. Also the reward server for phase 2. | Working |
-| **Website + playground** (`web/`) | Anyone: paste an answer from Perplexity/ChatGPT/Gemini with its sources and see each claim highlighted. `upheld serve` hosts it next to the API. See [web/README.md](web/README.md). | Site live at [upheld.varunsg.com](https://upheld.varunsg.com); playground not yet deployed |
+| **Python library** (`pip install upheld`) | Developers: `upheld.audit()` checks an answer and its sources, or an OpenAI, Anthropic, Perplexity or Gemini response as the API returned it, in an eval suite, a test or a pipeline. Runs on a laptop (CPU, Apple or NVIDIA GPU), no API key, nothing leaves your machine except fetching the cited pages. | Working |
+| **CLI** (`upheld audit`) | Spot-checking an answer copied from an AI search tool, or a provider's response saved as JSON. | Working |
+| **HTTP API** (`upheld serve`) | RAG builders: audit your pipeline's outputs in CI or as a guardrail before showing an answer, from any language. `POST /audit/{provider}` takes a provider's response as it is. Also the reward server for phase 2. | Working |
+| **Website + playground** (`web/`) | Anyone: paste an answer from Perplexity/ChatGPT/Gemini with its sources and see each claim highlighted. `upheld serve` hosts it next to the API. See [web/README.md](https://github.com/warun7/upheld/blob/main/web/README.md). | Site live at [upheld.varunsg.com](https://upheld.varunsg.com); playground not yet deployed |
 | **Browser extension** | Overlays verdicts directly on AI search answers. Calls the hosted API. Most visible, but brittle (each site's page structure changes). | Later |
 
 ## What it reports
@@ -35,27 +36,138 @@ Every report names its verifier and threshold, because measured citation accurac
 ## Quickstart
 
 ```bash
+pip install "upheld[models]"
+```
+
+```python
+import upheld
+
+report = upheld.audit("The Eiffel Tower is 330 metres tall [1]. It was designed by Frank Lloyd Wright [1].", ["https://en.wikipedia.org/wiki/Eiffel_Tower"])
+for claim in report.claims:
+    print(claim.verdict, claim.text)
+```
+
+```
+supported The Eiffel Tower is 330 metres tall.
+unsupported It was designed by Frank Lloyd Wright.
+```
+
+`upheld.audit` takes an answer with `[1]`-style markers or inline links, and its sources in order: URLs to fetch, or the text itself. It returns an `AuditReport` with a verdict, a support score and the evidence for every claim. To audit a provider's response as it comes back from the API, see [Use it in your code](#use-it-in-your-code).
+
+The first run downloads about 4 GB of models from Hugging Face: the two that the default ensemble verifier combines (`lytang/MiniCheck-Flan-T5-Large`, `KRLabsOrg/lettucedect-base-modernbert-en-v1`) and the retrieval embedder (`BAAI/bge-small-en-v1.5`). `verifier="minicheck"` uses one model. Plain `pip install upheld` leaves out torch and the models, and runs only `verifier="lexical", retrieval="bm25"`, which is much weaker. The most accurate verifier, `ensemble+judge`, also needs `pip install "upheld[models,judge]"`, which builds llama.cpp from source, and downloads the 8.7 GB Granite Guardian GGUF on first use.
+
+The same from the command line:
+
+```bash
+upheld audit answer.md                       # markdown answer with a reference list; fetches the URLs
+upheld audit response.json --from openai     # a provider's API response, saved as JSON
+upheld audit answer.md --json                # full report
+upheld serve                                 # POST /audit on http://127.0.0.1:8000
+```
+
+### From a clone
+
+The examples, evals and tests are in the repository:
+
+```bash
 git clone https://github.com/warun7/upheld && cd upheld
 uv sync --extra models                             # base deps + MiniCheck + LettuceDetect + embedding model (torch)
 uv run upheld audit examples/glp1.json             # inline source text
 uv run upheld audit examples/eiffel.md             # markdown answer with a reference list; fetches URLs
-uv run upheld audit examples/eiffel.md --json      # full report
 uv run upheld eval evals/smoke.jsonl               # verifier vs labels, with a threshold sweep
-uv run upheld serve                                # POST /audit on http://127.0.0.1:8000
 (cd web && npm ci && npm run build)                # optional: then `upheld serve` also hosts the site at /
 uv run pytest
 ```
 
-The first run downloads about 4 GB of models from Hugging Face: the two that the default ensemble verifier combines (`lytang/MiniCheck-Flan-T5-Large`, `KRLabsOrg/lettucedect-base-modernbert-en-v1`) and the retrieval embedder (`BAAI/bge-small-en-v1.5`). `--verifier minicheck` uses one model, and `--verifier lexical --retrieval bm25` runs with none. The most accurate verifier, `--verifier ensemble+judge`, also needs `uv sync --all-extras`, which builds llama.cpp from source, and downloads the 8.7 GB Granite Guardian GGUF on first use.
+`uv sync --all-extras` adds the judge. [RELEASING.md](https://github.com/warun7/upheld/blob/main/RELEASING.md) covers publishing to PyPI.
 
 ### Input
 
-- **JSON** (`AuditRequest`): `{"question": "...", "answer": "...", "sources": [{"id": "1", "url": "...", "text": "..."}]}`. A source with `text` is used as-is; otherwise its `url` is fetched.
+- **JSON** (`AuditRequest`): `{"question": "...", "answer": "...", "sources": [{"id": "1", "url": "...", "text": "..."}]}`. A source with `text` is used as-is; otherwise its `url` is fetched. Optional `cited_spans`, `[{"start": 0, "end": 40, "cited": ["1"]}]`, mark character ranges of the answer as cited; each is checked as one claim, in place of the sentences it overlaps.
 - **Markdown/text**: an answer with `[1]`-style markers or inline `[text](url)` links, optionally ending in a reference list (`[1] Title - https://...`). Use `-` to read from stdin.
+- **A provider's response**: see below.
+
+## Use it in your code
+
+Hand upheld the response your code already gets from OpenAI, Anthropic, Perplexity or Gemini with web search on. It reads the provider's own citation data, so there's nothing to reformat:
+
+```python
+import upheld
+from openai import OpenAI
+
+question = "How tall is the Eiffel Tower?"
+response = OpenAI().responses.create(model="gpt-6-astra", tools=[{"type": "web_search"}], input=question)
+report = upheld.audit(response, question=question)
+print(f"{report.summary.supported_claims} of {report.summary.cited_claims} cited claims supported")
+```
+
+The other providers' responses go in the same way:
+
+```python
+import anthropic
+from google import genai
+from perplexity import Perplexity
+
+# Anthropic: Messages with the web search tool
+message = anthropic.Anthropic().messages.create(
+    model="claude-sonnet-5-5",
+    max_tokens=2048,
+    messages=[{"role": "user", "content": question}],
+    tools=[{"type": "web_search_20250305", "name": "web_search"}],
+)
+report = upheld.audit(message, question=question)
+
+# Gemini: Google Search grounding, from the Interactions API or generate_content
+interaction = genai.Client().interactions.create(model="gemini-3.8-flash", input=question, tools=[{"type": "google_search"}])
+report = upheld.audit(interaction, question=question)
+
+# Perplexity: the Agent API, or Sonar
+response = Perplexity().responses.create(effort="low", input=question)
+report = upheld.audit(response, question=question)
+```
+
+A response can be the SDK's object, its JSON as a dict, or a JSON string. upheld tells the provider from its shape; `provider="gemini"` names it. `upheld.from_openai(response)`, and likewise `from_anthropic`, `from_perplexity` and `from_gemini`, return the `AuditRequest` upheld builds, so you can see the claims and sources before auditing.
+
+| Response | What upheld reads | What it checks as a claim |
+|---|---|---|
+| OpenAI Responses API, or Chat Completions with web search | `url_citation` annotations: the URL, its title, and the range of the link the model wrote | Sentences. OpenAI's range covers the link after a claim, not the claim, so the link becomes a `[n]` marker. `utm_source=openai` is dropped from the URLs so the Wayback Machine can find them. |
+| Anthropic Messages with web search | Text blocks whose `citations` hold `web_search_result_location` entries | Each cited block. Claude's narration of its searches, before the first cited block, is left out. |
+| Perplexity Agent API or Sonar | `[1]` or `[web:1]` markers, numbered into `search_results` (or Sonar's older `citations`) | Sentences, split at the markers |
+| Gemini `generate_content` with Google Search | `groundingSupports`, byte ranges of the text with indices into `groundingChunks` | Each range. The chunks' URLs are Google redirects, which upheld follows; the report gives the page each led to. |
+| Gemini Interactions API | `url_citation` annotations over the cited text | Each annotated range |
+
+A cited range too short to be a claim on its own, such as a name, is widened to the sentence it's in. Sentences outside every cited range are still reported, as `uncited` when they read as claims. Claim offsets refer to the answer text upheld assembled, `upheld.from_…(response).answer`.
+
+Gemini's redirect links stop working after a while, so audit a Gemini response soon after you get it. An expired link is reported `unverifiable`, since the page it pointed to is unknown.
+
+### Load the models once
+
+`upheld.audit` keeps the models from its last call loaded. To hold them yourself, or to audit from async code, make an `Auditor`:
+
+```python
+auditor = upheld.Auditor()  # verifier="ensemble", retrieval="auto": a few seconds and about 4 GB to load
+
+for answer, docs in batch:
+    report = auditor.audit(answer, docs)  # docs: your retrieved texts, cited as [1], [2], ...
+
+report = await auditor.audit_async(response)  # in an event loop, such as a web server
+```
+
+`run_audit(request, verifier, embedder=...)` is still there for full control.
+
+### From the command line and over HTTP
+
+```bash
+upheld audit response.json --from openai     # or anthropic, perplexity, gemini; auto, the default, tells them apart
+upheld serve &
+curl -s localhost:8000/audit/auto -H 'content-type: application/json' -d @response.json
+```
+
+`POST /audit/{provider}` takes the response as its body, and the question as an optional `?question=` parameter, and returns the same report as `POST /audit`.
 
 ## How it works
 
-1. **Parse**: split the answer into sentences, map `[1]`, `[1, 2]`, `[^1]` and inline links to sources, and pull out a trailing reference list. Lead-ins and questions aren't treated as claims.
+1. **Parse**: split the answer into sentences, map `[1]`, `[1, 2]`, `[^1]` and inline links to sources, and pull out a trailing reference list. Lead-ins and questions aren't treated as claims. When a provider's response marks exactly which text a source backs (Anthropic's cited blocks, Gemini's grounding ranges), each of those ranges is a claim instead.
 2. **Fetch**: download cited URLs (5 MB cap) and extract the main text: trafilatura for web pages, pypdf for PDFs, with a PDF's wrapped lines and words hyphenated across lines joined back up. A 404/410 or unresolvable domain is checked against the Wayback Machine: archived means link rot, never archived means likely fabricated. 401/403/429/5xx and timeouts only mean "couldn't read", and so does a page with under 300 characters of text, which is a cookie wall, bot check or JavaScript shell rather than the article, or a scanned PDF with no text layer. For a dead page or one that couldn't be read, upheld then reads the newest copy the Wayback Machine archived with HTTP 200 (one lookup and one fetch), extracts it the same way, with the same 300-character floor, and judges claims against it like a live page. The source is reported as `archived` (or `link_rot` if it's dead), with the copy's date and address, and each citation of it says it was checked against the copy. Only a working copy counts as archived, so a URL the Wayback Machine has seen only as a 404 is likely fabricated. A scanned PDF, a PDF over the cap or an unsupported file type isn't looked up, since its copy is the same file.
 3. **Retrieve evidence**: chunk each source into ~120-word windows and pick the top 3 per claim, or the top 10 for the judge ensemble, which turns more of the page into fewer false alarms (see [Fresh 2026 benchmark](#fresh-2026-benchmark)). Hybrid mode (the default when the `dense` extra is installed) ranks passages with both BM25 and `bge-small-en-v1.5` embeddings and merges the rankings with reciprocal rank fusion, so paraphrases aren't missed. `--retrieval bm25` uses keywords only.
 4. **Verify**: the default verifier combines three signals with a logistic regression whose four numbers were fit on 2,000 AttributionBench training rows:
@@ -128,7 +240,7 @@ The edits are synthetic and the claims come from AttributionBench, so these numb
 
 ### Fresh 2026 benchmark
 
-25 current questions, answered on 31 October and 1 November 2026 by Claude, OpenAI and Gemini agents with their own web search (how, under [Evals](#evals)). upheld split each answer into claims and found 641 pairs of a claim and a page it cites. Each pair is labeled supported, partial, unsupported or can't judge: 639 by Claude Sonnet 5.5 subagents following [`labeling-guide.md`](evals/fresh/labeling-guide.md), 2 by hand. The labelers saw the question, the claim, the cited URL and upheld's retrieved passages, but not which agent wrote the answer or upheld's verdict, and read the full page whenever the passages didn't settle it. GPT and Gemini relabeled a sample of 150 to check Claude's labels ([below](#checking-claudes-labels)).
+25 current questions, answered on 31 October and 1 November 2026 by Claude, OpenAI and Gemini agents with their own web search (how, under [Evals](#evals)). upheld split each answer into claims and found 641 pairs of a claim and a page it cites. Each pair is labeled supported, partial, unsupported or can't judge: 639 by Claude Sonnet 5.5 subagents following [`labeling-guide.md`](https://github.com/warun7/upheld/blob/main/evals/fresh/labeling-guide.md), 2 by hand. The labelers saw the question, the claim, the cited URL and upheld's retrieved passages, but not which agent wrote the answer or upheld's verdict, and read the full page whenever the passages didn't settle it. GPT and Gemini relabeled a sample of 150 to check Claude's labels ([below](#checking-claudes-labels)).
 
 | Agent | Citations | Supported | Partial | Unsupported | Can't judge | Dead links |
 |---|---|---|---|---|---|---|
@@ -136,11 +248,11 @@ The edits are synthetic and the claims come from AttributionBench, so these numb
 | Claude Sonnet 5.5, Claude Code | 255 | **47%** | 25% | 17% | 11% | 6 |
 | Gemini 3.8 Flash, Antigravity CLI | 257 | **41%** | 45% | 7% | 7% | 0 |
 
-Perplexity has one answer (4 citations) so far and isn't ranked. The full table is [`evals/fresh/scoreboard.md`](evals/fresh/scoreboard.md). Its dead-link counts come from a re-audit on 3 November and differ in two places: Gemini shows 7, all one FDA label PDF that answers upheld with a 404 on most tries but serves the file to a browser, and Claude shows 5, because the Wayback Machine check failed for one of its dead links that day.
+Perplexity has one answer (4 citations) so far and isn't ranked. The full table is [`evals/fresh/scoreboard.md`](https://github.com/warun7/upheld/blob/main/evals/fresh/scoreboard.md). Its dead-link counts come from a re-audit on 3 November and differ in two places: Gemini shows 7, all one FDA label PDF that answers upheld with a 404 on most tries but serves the file to a browser, and Claude shows 5, because the Wayback Machine check failed for one of its dead links that day.
 
 **upheld against these labels**: re-audited on 3 November, and again on 4 November for the 40 answers citing a page it couldn't read, on the 554 citations whose page it could read, the default pipeline agreed with the label 75% of the time. It flagged 90% of the citations labeled partial or unsupported, and 70% of its flags were right. 74 of those citations were read from a Wayback Machine copy because the page blocked upheld or was dead; it agreed with the label on 50 of them. The 4 November re-audit fetched those answers' other pages again too, and 10 citations upheld had read the day before were blocked this time with no readable copy (PubMed, the BMJ, FindLaw, FourWeekMBA), while 1 went the other way. With only the archived copies' verdicts added to the 3 November audit, it agrees on 75% of 563 citations, with precision 0.70 and recall 0.90.
 
-**With the judge**: each verifier on the 564 labeled citations whose page upheld can read, with the page fetched and the passages retrieved the way upheld does it ([`evals/fresh/verifiers.py`](evals/fresh/verifiers.py), without the entity check, pages fetched on 3 November). 62 of them, citing 25 pages that block upheld, time out or are block pages, were read from a Wayback Machine copy on 4 November:
+**With the judge**: each verifier on the 564 labeled citations whose page upheld can read, with the page fetched and the passages retrieved the way upheld does it ([`evals/fresh/verifiers.py`](https://github.com/warun7/upheld/blob/main/evals/fresh/verifiers.py), without the entity check, pages fetched on 3 November). 62 of them, citing 25 pages that block upheld, time out or are block pages, were read from a Wayback Machine copy on 4 November:
 
 | Verifier | Passages per claim | Agreement | Macro-F1 | Bad citations flagged | Good citations flagged |
 |---|---|---|---|---|---|
@@ -170,7 +282,7 @@ What this says:
 
 #### Checking Claude's labels
 
-GPT (`gpt-6-luna` through the Codex CLI) and Gemini (Gemini 4 Argon through the Antigravity CLI) relabeled 150 citations, sampled in proportion to each agent and each of Claude's labels, under the same guide and the same blinding, and without seeing Claude's labels. Both got the passages plus the cited page's text, fetched once so that both read the same document. Full results: [`evals/fresh/crosscheck.md`](evals/fresh/crosscheck.md).
+GPT (`gpt-6-luna` through the Codex CLI) and Gemini (Gemini 4 Argon through the Antigravity CLI) relabeled 150 citations, sampled in proportion to each agent and each of Claude's labels, under the same guide and the same blinding, and without seeing Claude's labels. Both got the passages plus the cited page's text, fetched once so that both read the same document. Full results: [`evals/fresh/crosscheck.md`](https://github.com/warun7/upheld/blob/main/evals/fresh/crosscheck.md).
 
 | Labelers | Same label | Same verdict (supported or not) | Cohen's κ (verdict) |
 |---|---|---|---|
@@ -255,6 +367,7 @@ The labels in `labels-claude.jsonl` came from Claude subagents given `labeling-g
 - Speed: MiniCheck in bf16, and batching claims across sources
 - ~~PDF sources~~ done: read with pypdf, which made 9 of the 10 PDFs cited in the fresh benchmark readable. Next: OCR for scans
 - ~~Read archived copies of pages upheld can't read~~ done: a page that blocks upheld, times out, serves a block page or is dead is read from the Wayback Machine's newest copy, which cut the fresh benchmark's unverifiable citations from 142 (22%) to 50 (8%)
+- ~~Installable package and provider responses~~ done: `pip install upheld`, `upheld.audit()`, and OpenAI, Anthropic, Perplexity and Gemini responses read with their own citation data. Next: an MCP server so coding agents can check the citations in their drafts, then a pytest helper and a GitHub Action
 - ~~Web app~~ done: landing page and playground in `web/`, with the site live at [upheld.varunsg.com](https://upheld.varunsg.com). Next: deploy the playground with the hosted API, then a browser extension
 
 **Phase 2: train a search agent to cite honestly**

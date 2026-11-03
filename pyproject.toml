@@ -9,9 +9,24 @@ authors = [
     { name = "Varun S G", email = "varun.g.ug23@plaksha.edu.in" }
 ]
 requires-python = ">=3.12"
+keywords = ["citations", "attribution", "fact-checking", "hallucination", "rag", "llm", "evaluation"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Text Processing :: Linguistic",
+    "Typing :: Typed",
+]
 dependencies = [
     "fastapi>=0.162.0",
     "httpx>=0.28.1",
+    "numpy>=1.26",
     "pydantic>=2.14.2",
     "pypdf>=6.21.4",
     "rank-bm25>=0.2.2",
@@ -23,7 +38,10 @@ dependencies = [
 ]
 
 [project.urls]
+Homepage = "https://upheld.varunsg.com"
+Documentation = "https://upheld.varunsg.com/docs/"
 Repository = "https://github.com/warun7/upheld"
+Issues = "https://github.com/warun7/upheld/issues"
 
 [project.scripts]
 upheld = "upheld.cli:app"

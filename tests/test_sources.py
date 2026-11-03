@@ -194,3 +194,45 @@ def test_unreadable_document_is_not_looked_up_in_the_archive():
     fetched, requested = fetch_with_archive(scan, [["20261011194435", URL]], html(ARTICLE))
     assert fetched.status == LinkStatus.UNREACHABLE
     assert requested == [httpx.URL(URL)]
+
+
+GEMINI = "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGcTq8x2xZr9kF0bHkE4yL7mNw1"
+
+
+def fetch_through_redirect(redirect: httpx.Response, live: httpx.Response):
+    """Fetch Gemini's redirect link, which answers with redirect; URL answers with live, and was never archived."""
+    requested = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        requested.append(request.url)
+        if str(request.url).startswith(CDX):
+            return httpx.Response(200, json=[])
+        if str(request.url) == GEMINI:
+            return redirect
+        return live if str(request.url) == URL else httpx.Response(404)
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handle), follow_redirects=True) as client:
+            return await fetch_source(client, Source(id="1", url=GEMINI))
+
+    return asyncio.run(run()), requested
+
+
+def test_redirect_is_followed_and_reported():
+    fetched, _ = fetch_through_redirect(httpx.Response(302, headers={"location": URL}), html(ARTICLE))
+    assert fetched.status == LinkStatus.LIVE
+    assert fetched.resolved_url == URL
+
+
+def test_blocked_page_behind_a_gemini_redirect_is_looked_up_by_its_real_url():
+    fetched, requested = fetch_through_redirect(httpx.Response(302, headers={"location": URL}), httpx.Response(403))
+    [lookup] = [u for u in requested if str(u).startswith(CDX)]
+    assert lookup.params["url"] == URL
+    assert fetched.status == LinkStatus.UNREACHABLE and fetched.resolved_url == URL
+
+
+def test_expired_gemini_redirect_is_unreadable_not_fabricated():
+    fetched, requested = fetch_through_redirect(httpx.Response(404), html(ARTICLE))
+    assert fetched.status == LinkStatus.UNREACHABLE
+    assert "redirect link no longer resolves" in fetched.note
+    assert requested == [httpx.URL(GEMINI)]

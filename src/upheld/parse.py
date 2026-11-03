@@ -4,12 +4,15 @@ Handles the citation styles AI search tools commonly emit:
   - numeric markers: [1], [1, 2], [1][2], [^1], 【1】
   - inline markdown links: [text](https://...)
   - a trailing reference list: "[1] Title - https://..." or "1. https://..."
+
+A provider response that marks exactly which text a source backs gives
+those spans instead (with_cited_spans).
 """
 
 import re
 from dataclasses import dataclass, field
 
-from upheld.models import Source
+from upheld.models import CitedSpan, Source
 
 _MARKER = re.compile(r"\[\^?(\d+(?:\s*,\s*\d+)*)\]|【(\d+)】")
 _MD_LINK = re.compile(r"(?<!!)\[([^\]]+)\]\((https?://[^)\s]+)\)")
@@ -134,3 +137,30 @@ def split_claims(answer: str) -> tuple[list[Claim], list[Source]]:
         pos += len(line)
     link_sources = [Source(id=url, url=url) for url in link_ids]
     return claims, link_sources
+
+
+def with_cited_spans(answer: str, claims: list[Claim], spans: list[CitedSpan]) -> list[Claim]:
+    """Make each cited span a claim, in place of the sentences it overlaps.
+
+    A span too short to be a claim on its own (a name or a date, say) is
+    widened to the sentences it falls in. Sentences outside every span stay
+    as they are, so uncited claims are still reported.
+    """
+    ranges: dict[tuple[int, int], list[str]] = {}
+    for span in spans:
+        raw = answer[span.start : span.end]
+        start = span.start + len(raw) - len(raw.lstrip())
+        end = span.end - len(raw) + len(raw.rstrip())
+        if start >= end:
+            continue
+        if not is_claim(_clean(answer[start:end])):
+            around = [c for c in claims if c.start < end and start < c.end]
+            if around:
+                start, end = around[0].start, around[-1].end
+        ids = ranges.setdefault((start, end), [])
+        ids.extend(i for i in span.cited if i not in ids)
+
+    from_spans = [Claim(0, _clean(answer[s:e]), s, e, ids) for (s, e), ids in ranges.items()]
+    rest = [c for c in claims if not any(c.start < e and s < c.end for s, e in ranges)]
+    merged = sorted([*from_spans, *rest], key=lambda c: (c.start, c.end))
+    return [Claim(i, c.text, c.start, c.end, c.cited) for i, c in enumerate(c for c in merged if c.text)]

@@ -1,8 +1,8 @@
 import asyncio
 from datetime import UTC, datetime
 
-from upheld import audit as audit_module
-from upheld.audit import run_audit
+from upheld import pipeline
+from upheld.pipeline import run_audit
 from upheld.models import AuditRequest, LinkStatus, Source, Verdict
 from upheld.sources import FetchedSource
 from upheld.verify import LexicalVerifier
@@ -85,7 +85,7 @@ def test_archived_copy_is_checked_like_a_live_page(monkeypatch):
         )
         return {source.id: copy}
 
-    monkeypatch.setattr(audit_module, "fetch_all", fetch_all)
+    monkeypatch.setattr(pipeline, "fetch_all", fetch_all)
     req = AuditRequest(answer="The Eiffel Tower in Paris is 330 metres tall [1].\n\n[1] https://example.com/eiffel")
     report = asyncio.run(run_audit(req, LexicalVerifier()))
     [check] = report.claims[0].checks

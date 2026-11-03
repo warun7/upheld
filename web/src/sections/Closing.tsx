@@ -75,22 +75,20 @@ export function Limits() {
 }
 
 const SNIPPETS = {
-  CLI: `git clone https://github.com/warun7/upheld && cd upheld
-uv sync --extra models
+  CLI: `pip install "upheld[models]"
 
-uv run upheld audit examples/eiffel.md          # fetches the cited URLs
-uv run upheld audit examples/glp1.json --json   # source text inline, full report`,
-  Python: `import asyncio
-from upheld import AuditRequest, Source, make_verifier, run_audit
+upheld audit answer.md                      # fetches the cited URLs
+upheld audit response.json --from openai    # an OpenAI response, saved as JSON
+upheld audit answer.md --json               # full report`,
+  Python: `import upheld
 
-req = AuditRequest(
-    answer="Semaglutide led to an average weight loss of 14.9% [1].",
-    sources=[Source(id="1", text="The mean change in body weight was -14.9% ...")],
+report = upheld.audit(
+    "Semaglutide led to an average weight loss of 14.9% [1].",
+    ["The mean change in body weight was -14.9% ..."],
 )
-report = asyncio.run(run_audit(req, make_verifier("ensemble")))
 for claim in report.claims:
     print(claim.verdict, claim.text)`,
-  HTTP: `uv run upheld serve        # this site, the playground and the API on :8000
+  HTTP: `upheld serve        # the API on :8000
 
 curl -s localhost:8000/audit -H 'content-type: application/json' -d '{
   "answer": "The Eiffel Tower is 384 metres tall [1].",
