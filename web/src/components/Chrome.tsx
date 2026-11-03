@@ -1,7 +1,8 @@
-import { ArrowUpRightIcon, GithubLogoIcon, MoonIcon, SunIcon } from "@phosphor-icons/react";
+import { ArrowUpRightIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { AUTHOR, DOCS_URL, GITHUB_URL, HAS_PLAYGROUND, PLAYGROUND_URL, PRIMARY_CTA } from "../lib/site";
+import { GithubMark, MoonGlyph, SunGlyph } from "./icons";
 import { LinkButton } from "./ui";
 
 // "upheld" outlined from Mona Sans at wght 600, each letter moved 28 units closer to the last,
@@ -54,7 +55,7 @@ export function ThemeToggle() {
           transition={{ type: "spring", stiffness: 420, damping: 26 }}
           className="block"
         >
-          {theme === "dark" ? <SunIcon size={17} weight="bold" /> : <MoonIcon size={17} weight="bold" />}
+          {theme === "dark" ? <SunGlyph /> : <MoonGlyph />}
         </motion.span>
       </AnimatePresence>
     </button>
@@ -126,7 +127,7 @@ export function Nav({ page }: { page: "landing" | "docs" | "app" }) {
             className="hidden size-9 place-items-center text-ink-2 transition-colors hover:bg-cell-2 hover:text-ink sm:grid"
             aria-label="upheld on GitHub"
           >
-            <GithubLogoIcon size={18} weight="bold" />
+            <GithubMark size={17} />
           </a>
           {page === "landing" ? (
             <LinkButton href={PRIMARY_CTA.href} size="sm" className="ml-2">
