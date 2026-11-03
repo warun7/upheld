@@ -4,7 +4,7 @@ import { AnswerText, ClaimDetail, SourceRows } from "../components/AuditView";
 import { LinkButton, Section } from "../components/ui";
 import towerJson from "../data/examples/tower.json";
 import type { ClaimResult, Example } from "../lib/api";
-import { PLAYGROUND_URL } from "../lib/site";
+import { DOCS_URL, HAS_PLAYGROUND, PLAYGROUND_URL } from "../lib/site";
 import { VERDICTS } from "../lib/verdicts";
 
 const tower = towerJson as Example;
@@ -188,8 +188,8 @@ export function Demo() {
             A real report, not a mockup. upheld audited this answer against live Wikipedia. Drag the slider to step through its six claims.
           </p>
         </div>
-        <LinkButton href={PLAYGROUND_URL} variant="ghost" arrow className="justify-self-start">
-          Try your own answer
+        <LinkButton href={HAS_PLAYGROUND ? PLAYGROUND_URL : `${DOCS_URL}#audit-an-answer`} variant="ghost" arrow className="justify-self-start">
+          {HAS_PLAYGROUND ? "Try your own answer" : "Run it on your own answer"}
         </LinkButton>
       </div>
 

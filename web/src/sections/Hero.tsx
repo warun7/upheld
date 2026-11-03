@@ -2,7 +2,7 @@ import { GithubLogoIcon } from "@phosphor-icons/react";
 import { motion, useReducedMotion } from "motion/react";
 import { GlyphField } from "../components/GlyphField";
 import { CopyBar, LinkButton, Section, Ticker } from "../components/ui";
-import { GITHUB_URL, PLAYGROUND_URL } from "../lib/site";
+import { GITHUB_URL, PRIMARY_CTA } from "../lib/site";
 
 const QUICKSTART =
   "git clone https://github.com/warun7/upheld && cd upheld && uv sync --extra models && uv run upheld audit examples/eiffel.md";
@@ -68,8 +68,8 @@ export function Hero() {
           </motion.p>
           <motion.div {...fade(0.55)} className="grid w-full max-w-[25rem] grid-cols-1 gap-5">
             <div className="flex flex-wrap gap-x-4 gap-y-5">
-              <LinkButton href={PLAYGROUND_URL} arrow>
-                Open playground
+              <LinkButton href={PRIMARY_CTA.href} arrow>
+                {PRIMARY_CTA.label}
               </LinkButton>
               <LinkButton href={GITHUB_URL} variant="ghost" icon={<GithubLogoIcon size={17} weight="bold" aria-hidden />}>
                 View on GitHub

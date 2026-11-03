@@ -1,7 +1,7 @@
 import { ArrowUpRightIcon, GithubLogoIcon, MoonIcon, SunIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
-import { AUTHOR, GITHUB_URL, PLAYGROUND_URL } from "../lib/site";
+import { AUTHOR, DOCS_URL, GITHUB_URL, HAS_PLAYGROUND, PLAYGROUND_URL, PRIMARY_CTA } from "../lib/site";
 import { LinkButton } from "./ui";
 
 // "upheld" outlined from Mona Sans at wght 600, so the beam can sit exactly on the ascenders.
@@ -90,8 +90,12 @@ function useActiveSection(enabled: boolean) {
   return active;
 }
 
-export function Nav({ page }: { page: "landing" | "app" }) {
+export function Nav({ page }: { page: "landing" | "docs" | "app" }) {
   const active = useActiveSection(page === "landing");
+  // The page renders after the browser's own jump to a #section link, so make the jump once it exists.
+  useEffect(() => {
+    if (location.hash) document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView({ behavior: "instant" });
+  }, []);
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-bg/85 backdrop-blur-md">
       <div className="frame flex h-14 items-center gap-6 px-4 sm:px-5">
@@ -109,6 +113,10 @@ export function Nav({ page }: { page: "landing" | "app" }) {
               {l.label}
             </a>
           ))}
+          <a href={DOCS_URL} className={`relative flex items-center gap-2 px-3 py-1.5 transition-colors hover:text-ink ${page === "docs" ? "text-ink" : ""}`}>
+            {page === "docs" && <span className="absolute left-0 size-1.5 bg-accent" />}
+            Docs
+          </a>
         </nav>
         <div className="ml-auto flex items-center gap-1">
           <ThemeToggle />
@@ -120,6 +128,10 @@ export function Nav({ page }: { page: "landing" | "app" }) {
             <GithubLogoIcon size={18} weight="bold" />
           </a>
           {page === "landing" ? (
+            <LinkButton href={PRIMARY_CTA.href} size="sm" className="ml-2">
+              {PRIMARY_CTA.label}
+            </LinkButton>
+          ) : page === "docs" && HAS_PLAYGROUND ? (
             <LinkButton href={PLAYGROUND_URL} size="sm" className="ml-2">
               Open playground
             </LinkButton>
@@ -146,10 +158,17 @@ export function Footer() {
         </div>
         <ul className="flex flex-wrap gap-x-6 gap-y-3 text-sm text-ink-2">
           <li>
-            <a href={PLAYGROUND_URL} className="hover:text-ink">
-              Playground
+            <a href={DOCS_URL} className="hover:text-ink">
+              Docs
             </a>
           </li>
+          {HAS_PLAYGROUND && (
+            <li>
+              <a href={PLAYGROUND_URL} className="hover:text-ink">
+                Playground
+              </a>
+            </li>
+          )}
           <li>
             <a href={`${GITHUB_URL}#readme`} className="hover:text-ink">
               README

@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { GlyphField } from "../components/GlyphField";
 import { Roll, Section } from "../components/ui";
-import { GITHUB_URL, PLAYGROUND_URL } from "../lib/site";
+import { GITHUB_URL, PRIMARY_CTA } from "../lib/site";
 
 const REASONING = [
   {
@@ -203,8 +203,8 @@ export function FinalCta() {
         <div className="px-5 pt-20 pb-6 sm:px-8 md:pt-28 lg:px-12">
           <h2 className="display max-w-[16ch] text-5xl leading-[0.98] md:text-7xl">Paste an answer. See what holds up.</h2>
           <div className="mt-10 flex flex-wrap gap-x-4 gap-y-5">
-            <a href={PLAYGROUND_URL} className="btn btn-invert">
-              <Roll>Open playground</Roll>
+            <a href={PRIMARY_CTA.href} className="btn btn-invert">
+              <Roll>{PRIMARY_CTA.label}</Roll>
               <ArrowRightIcon size={15} weight="bold" className="arrow" aria-hidden />
             </a>
             <a href={GITHUB_URL} className="btn btn-outline-invert">
