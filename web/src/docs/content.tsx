@@ -19,7 +19,7 @@ const LINK_STATUS_NOTE: Record<LinkStatus, string> = {
   live: "Fetched and read.",
   link_rot: "Dead now (404, 410 or no such domain), but the Wayback Machine has a copy. Claims citing it are unverifiable.",
   likely_fabricated: "Dead and never archived, so it probably never existed. Claims citing it are source_missing.",
-  unreachable: "Blocked, timed out, no readable text, or a format upheld can't read yet (PDF).",
+  unreachable: "Blocked, timed out, under 300 characters of text (a cookie wall, bot check or JavaScript shell), or a format upheld can't read yet (PDF).",
   missing: "The answer cites an id that has no matching source.",
 };
 
@@ -269,7 +269,7 @@ const verifiers: DocPage = {
         ]}
       />
       <p>
-        The ensemble takes roughly 0.3 to 1 second per claim per source on an Apple M5 Pro and is several times slower on CPU; the judge adds 0.4 to 0.8 seconds. For
+        The ensemble takes roughly 0.3 to 1 second per claim per source on an Apple M5 Pro and is several times slower on CPU; the judge ensemble reads 10 passages per claim and takes about 2.5 to 3 seconds. For
         the full comparison, including GPT-4 and fine-tuned models, see the <A href="/#benchmarks">benchmarks</A>.
       </p>
       <H3>Thresholds</H3>
@@ -508,10 +508,11 @@ const howItWorks: DocPage = {
         </li>
         <li>
           <span className="text-ink">Fetch.</span> Download each cited page and extract its main text. A 404, 410 or unknown domain is checked against the Wayback
-          Machine: archived means link rot, never archived means likely fabricated. 403, 429 and 5xx only mean it couldn't be read.
+          Machine: archived means link rot, never archived means likely fabricated. 403, 429 and 5xx only mean it couldn't be read, and so does a page with under
+          300 characters of text: a cookie wall, bot check or JavaScript shell, not the article.
         </li>
         <li>
-          <span className="text-ink">Retrieve.</span> Cut each source into windows of about 120 words and keep the few that best match the claim, ranked by BM25 and
+          <span className="text-ink">Retrieve.</span> Cut each source into windows of about 120 words and keep the 3 that best match the claim (10 for the judge ensemble), ranked by BM25 and
           embeddings merged with reciprocal rank fusion.
         </li>
         <li>
@@ -546,7 +547,7 @@ const troubleshooting: DocPage = {
           ["Wikipedia or another site returns 403.", <>Some sites reject generic user agents. Set <C>UPHELD_USER_AGENT</C> to a string with your project's URL.</>],
           ["A localhost URL is refused.", <>Private addresses are blocked by default. Pass <C>--allow-private</C> on the CLI.</>],
           ["It's too slow on CPU.", <>Try <C>--verifier minicheck</C>, or <C>--verifier lexical --retrieval bm25</C> to skip the models entirely.</>],
-          ["A true claim is flagged.", <>Usually a one-step inference ("-14.9% change" vs "14.9% loss") or retrieval picking the wrong part of a long page. <C>--verifier ensemble+judge</C> handles inferences better.</>],
+          ["A true claim is flagged.", <>Usually a one-step inference ("-14.9% change" vs "14.9% loss") or retrieval picking the wrong part of a long page. <C>--verifier ensemble+judge</C> handles both better: it reads 10 passages per claim and flags about half as many good citations.</>],
           ["Every claim is source_missing.", <>The reference list didn't survive the copy. Check that the markers' numbers match a list at the end, or pass the sources in JSON.</>],
         ]}
       />
