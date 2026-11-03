@@ -2190,6 +2190,7 @@ dependencies = [
     { name = "fastapi" },
     { name = "httpx" },
     { name = "pydantic" },
+    { name = "pypdf" },
     { name = "rank-bm25" },
     { name = "rich" },
     { name = "trafilatura" },
@@ -2222,7 +2223,6 @@ models = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "pypdf" },
     { name = "pytest" },
     { name = "scikit-learn" },
 ]
@@ -2234,6 +2234,7 @@ requires-dist = [
     { name = "lettucedetect", marker = "extra == 'lettuce'", specifier = ">=0.2.3" },
     { name = "llama-cpp-python", marker = "extra == 'judge'", specifier = ">=0.3.36" },
     { name = "pydantic", specifier = ">=2.14.2" },
+    { name = "pypdf", specifier = ">=6.21.4" },
     { name = "rank-bm25", specifier = ">=0.2.2" },
     { name = "rich", specifier = ">=15.0.0" },
     { name = "sentence-transformers", marker = "extra == 'dense'", specifier = ">=6.2.0" },
@@ -2250,7 +2251,6 @@ provides-extras = ["lettuce", "dense", "minicheck", "judge", "models"]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "pypdf", specifier = ">=6.21.4" },
     { name = "pytest", specifier = ">=9.2.0" },
     { name = "scikit-learn", specifier = ">=1.9.1" },
 ]

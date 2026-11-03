@@ -32,13 +32,12 @@ import subprocess
 import tempfile
 from collections import Counter, defaultdict
 from datetime import UTC, datetime
-from io import BytesIO
 from itertools import combinations
 from pathlib import Path
 
 import httpx
 
-from upheld.sources import MIN_TEXT_CHARS, check_url_allowed, extract_text
+from upheld.sources import MIN_TEXT_CHARS, check_url_allowed, extract_pdf_text, extract_text
 from verifiers import load_scores, metrics
 
 HERE = Path(__file__).parent
@@ -160,12 +159,7 @@ async def _fetch_text(client: httpx.AsyncClient, url: str) -> str:
     if r.status_code >= 400:
         return ""
     if "pdf" in r.headers.get("content-type", "") or r.content[:5] == b"%PDF-":
-        from pypdf import PdfReader
-
-        try:
-            return "\n".join(page.extract_text() or "" for page in PdfReader(BytesIO(r.content)).pages)
-        except Exception:  # pypdf raises many types on damaged files
-            return ""
+        return await asyncio.to_thread(extract_pdf_text, r.content)
     return await asyncio.to_thread(extract_text, r.text, str(r.url))
 
 

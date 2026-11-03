@@ -268,7 +268,7 @@ export const FRESH_AGENTS: { name: string; model: string; counts: Record<FreshLa
 ];
 
 // upheld's verdicts against those labels, on the citations whose page it could read. Partial counts as unsupported.
-export const FRESH_UPHELD = { read: 481, agreement: 76, recall: 90, precision: 71 };
+export const FRESH_UPHELD = { read: 492, agreement: 76, recall: 91, precision: 70 };
 
 export const PROBLEM_STATS = [
   {

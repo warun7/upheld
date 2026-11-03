@@ -47,7 +47,7 @@ const PASSES = [
   },
   {
     verb: "Fetch",
-    body: "Downloads each cited page and pulls out its main text. A dead link goes to the Wayback Machine: archived means link rot, never archived means likely made up.",
+    body: "Downloads each cited page or PDF and pulls out its main text. A dead link goes to the Wayback Machine: archived means link rot, never archived means likely made up.",
     artifact: [
       ["GET [1]", "Eiffel_Tower", "200"],
       ["GET [2]", "..._repainting_schedule", "404"],
@@ -142,8 +142,8 @@ const CELLS: { verdict: Verdict; sample: ReactNode[]; note: string }[] = [
   },
   {
     verdict: "unverifiable",
-    sample: ["", "Trial data from the PDF appendix", " [3]"],
-    note: "Blocked, archived only, or a PDF. It says so instead of guessing.",
+    sample: ["", "Trial data from the paywalled appendix", " [3]"],
+    note: "Blocked, archived only, or a scan with no text. It says so instead of guessing.",
   },
   {
     verdict: "uncited",

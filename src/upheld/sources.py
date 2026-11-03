@@ -9,12 +9,15 @@ say the page couldn't be read, not that it's fake.
 import asyncio
 import ipaddress
 import os
+import re
 import socket
 from dataclasses import dataclass
+from io import BytesIO
 from urllib.parse import urlparse
 
 import httpx
 import trafilatura
+from pypdf import PdfReader
 
 from upheld.models import LinkStatus, Source
 
@@ -73,6 +76,21 @@ def extract_text(html: str, url: str) -> str:
     return text or ""
 
 
+def extract_pdf_text(data: bytes) -> str:
+    try:
+        pages = [page.extract_text() or "" for page in PdfReader(BytesIO(data)).pages]
+    except Exception:  # pypdf raises many types on damaged files
+        return ""
+    return "\n\n".join(text for text in map(unwrap, pages) if text)
+
+
+def unwrap(text: str) -> str:
+    """Undo a PDF's line wrapping: join wrapped lines, and words broken across lines at a hyphen."""
+    text = re.sub(r"(?<=[A-Za-z])-[ \t]*\n\s*(?=[a-z])", "", text)  # con-\ntinues -> continues
+    text = re.sub(r"(?<=\w)-[ \t]*\n\s*", "-", text)  # COVID-\n19 -> COVID-19
+    return " ".join(text.split())
+
+
 async def _wayback_has_copy(client: httpx.AsyncClient, url: str) -> bool | None:
     # The CDX API is less aggressively rate-limited than /wayback/available.
     try:
@@ -118,17 +136,23 @@ async def fetch_source(client: httpx.AsyncClient, source: Source, allow_private:
         return FetchedSource(source, LinkStatus.UNREACHABLE, http_status=response.status_code, note=f"HTTP {response.status_code} ({reason})")
 
     content_type = response.headers.get("content-type", "")
+    unreadable = lambda note: FetchedSource(source, LinkStatus.UNREACHABLE, http_status=response.status_code, note=note)  # noqa: E731
+    if "pdf" in content_type or body.startswith(b"%PDF-"):
+        # A PDF cut off at the cap has lost the index at its end and won't parse.
+        if len(body) > MAX_BYTES:
+            return unreadable(f"PDF over {MAX_BYTES // 1_000_000} MB")
+        text = await asyncio.to_thread(extract_pdf_text, body)
+        if len(text) < MIN_TEXT_CHARS:
+            return unreadable(f"PDF had {len(text)} characters of text: likely a scan with no text layer, or a damaged file")
+        return FetchedSource(source, LinkStatus.LIVE, text, http_status=response.status_code)
     if "html" not in content_type and "text" not in content_type:
-        return FetchedSource(
-            source, LinkStatus.UNREACHABLE, http_status=response.status_code, note=f"unsupported content type: {content_type or 'unknown'}"
-        )
+        return unreadable(f"unsupported content type: {content_type or 'unknown'}")
     html = body.decode(response.encoding or "utf-8", errors="replace")
     text = await asyncio.to_thread(extract_text, html, str(response.url))
     if not (chars := len(text.strip())):
-        return FetchedSource(source, LinkStatus.UNREACHABLE, http_status=response.status_code, note="page had no extractable text")
+        return unreadable("page had no extractable text")
     if chars < MIN_TEXT_CHARS:
-        note = f"page had only {chars} characters of text: likely a cookie wall, bot check or page that needs JavaScript"
-        return FetchedSource(source, LinkStatus.UNREACHABLE, http_status=response.status_code, note=note)
+        return unreadable(f"page had only {chars} characters of text: likely a cookie wall, bot check or page that needs JavaScript")
     return FetchedSource(source, LinkStatus.LIVE, text, http_status=response.status_code)
 
 

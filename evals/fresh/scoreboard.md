@@ -9,7 +9,7 @@ How often each AI search tool's citations back the claim they're attached to. La
 | openai | gpt-6-luna (Codex CLI, web search) | 125 | 51% | 28% | 14% | 6% | 1/125 |
 | perplexity | perplexity/sonar-pro (OpenRouter, Sonar's own search) | 4 | 50% | 0% | 0% | 50% | 0/4 |
 
-upheld vs these labels (481 citations it could read): agreement 76%, precision 0.71 and recall 0.90 on unsupported citations.
+upheld vs these labels (492 citations it could read): agreement 76%, precision 0.70 and recall 0.91 on unsupported citations.
 
 Claude's labels match the hand labels on 1 of 2 citations labeled both ways.
 

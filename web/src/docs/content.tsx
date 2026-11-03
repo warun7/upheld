@@ -19,7 +19,7 @@ const LINK_STATUS_NOTE: Record<LinkStatus, string> = {
   live: "Fetched and read.",
   link_rot: "Dead now (404, 410 or no such domain), but the Wayback Machine has a copy. Claims citing it are unverifiable.",
   likely_fabricated: "Dead and never archived, so it probably never existed. Claims citing it are source_missing.",
-  unreachable: "Blocked, timed out, under 300 characters of text (a cookie wall, bot check or JavaScript shell), or a format upheld can't read yet (PDF).",
+  unreachable: "Blocked, timed out, under 300 characters of text (a cookie wall, bot check, JavaScript shell or scanned PDF), a PDF over 5 MB, or a file type upheld can't read.",
   missing: "The answer cites an id that has no matching source.",
 };
 
@@ -148,7 +148,7 @@ pbpaste | uv run upheld audit -`}</Code>
       </p>
       <H3>When a page can't be read</H3>
       <p>
-        Paywalls, bot checks, PDFs and pages that only render in a browser come back <C>unverifiable</C> rather than guessed at. If you can open the page yourself,
+        Paywalls, bot checks, scanned PDFs and pages that only render in a browser come back <C>unverifiable</C> rather than guessed at. If you can open the page yourself,
         paste its text into a JSON request instead (see <A href="#input">Input format</A>): a source with <C>text</C> is used as given and never fetched.
       </p>
     </>
@@ -435,7 +435,7 @@ const VERDICT_NOTE: Record<Verdict, ReactNode> = {
     </>
   ),
   source_missing: "The cited source isn't listed, or its URL is dead and was never archived: likely made up.",
-  unverifiable: "The source exists but couldn't be read: blocked, a PDF, no readable text, or a dead link with only an archived copy.",
+  unverifiable: "The source exists but couldn't be read: blocked, no readable text (a scanned PDF, say), or a dead link with only an archived copy.",
   uncited: "A factual-looking sentence with no citation. Questions and lead-ins aren't counted.",
 };
 
@@ -507,7 +507,7 @@ const howItWorks: DocPage = {
           <span className="text-ink">Parse.</span> Split the answer into sentences and map each marker or link to its source. Questions and lead-ins aren't claims.
         </li>
         <li>
-          <span className="text-ink">Fetch.</span> Download each cited page and extract its main text. A 404, 410 or unknown domain is checked against the Wayback
+          <span className="text-ink">Fetch.</span> Download each cited page and extract its main text, or a PDF's text. A 404, 410 or unknown domain is checked against the Wayback
           Machine: archived means link rot, never archived means likely fabricated. 403, 429 and 5xx only mean it couldn't be read, and so does a page with under
           300 characters of text: a cookie wall, bot check or JavaScript shell, not the article.
         </li>

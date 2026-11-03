@@ -58,19 +58,19 @@ Agreement and macro-F1 of each verifier on the sampled citations whose page uphe
 
 | Verifier | claude agree | claude macro-F1 | gpt agree | gpt macro-F1 | gemini agree | gemini macro-F1 | majority agree | majority macro-F1 |
 |---|---|---|---|---|---|---|---|---|
-| ensemble | 81% | 80.9 | 81% | 80.6 | 76% | 76.1 | 79% | 78.9 |
-| ensemble+judge | 87% | 86.8 | 87% | 86.7 | 88% | 87.7 | 87% | 86.8 |
-| judge | 90% | 89.6 | 86% | 85.8 | 87% | 86.8 | 88% | 87.7 |
-| minicheck | 74% | 73.5 | 72% | 71.3 | 71% | 70.6 | 72% | 71.5 |
-| lettuce | 75% | 74.1 | 75% | 73.7 | 72% | 71.2 | 73% | 72.1 |
-| lexical | 74% | 73.4 | 75% | 75.0 | 76% | 76.2 | 75% | 75.3 |
+| ensemble | 79% | 78.9 | 81% | 80.2 | 77% | 76.1 | 79% | 78.7 |
+| ensemble+judge | 84% | 84.3 | 84% | 84.3 | 85% | 85.2 | 84% | 84.3 |
+| judge | 89% | 88.7 | 85% | 85.1 | 86% | 86.1 | 87% | 86.9 |
+| minicheck | 71% | 71.2 | 71% | 70.9 | 70% | 70.3 | 71% | 71.1 |
+| lettuce | 74% | 73.7 | 72% | 71.4 | 70% | 69.1 | 70% | 69.9 |
+| lexical | 70% | 70.3 | 74% | 73.5 | 75% | 74.6 | 74% | 73.7 |
 
 ## Quotes
 
 Share of supported and partial labels whose quote appears verbatim in the passages or the fetched page (ignoring case, spacing and curly quotes; an ellipsis may join verbatim fragments).
 
 - claude: 110 of 118 (93%)
-- gpt: 104 of 124 (84%)
+- gpt: 105 of 124 (85%)
 - gemini: 121 of 122 (99%)
 
 Claude read some pages through its own fetcher or another copy of the document, so a quote it found there can be missing from this fetch.

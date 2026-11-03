@@ -36,7 +36,7 @@ export const VERDICTS: Record<Verdict, { label: string; short: string; icon: Ico
   },
   unverifiable: {
     label: "Unverifiable",
-    short: "The source exists but couldn't be read: blocked, a PDF, or link rot.",
+    short: "The source exists but couldn't be read: blocked, no readable text, or link rot.",
     icon: EyeSlashIcon,
     tone: "text-ink-2",
   },

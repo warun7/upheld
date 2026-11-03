@@ -32,7 +32,7 @@ const REASONING = [
 const COVERAGE = [
   { title: "Expert content", detail: "57.8 macro-F1 on ExpertQA. Expect more mistakes on specialist claims." },
   { title: "Speed", detail: "0.3-1 s per claim per source on an Apple M5 Pro, several times slower on CPU." },
-  { title: "No PDFs yet", detail: "PDF sources come back unverifiable rather than guessed at." },
+  { title: "No OCR", detail: "PDFs are read, but a scan with no text layer comes back unverifiable rather than guessed at." },
   { title: "Sentence-level claims", detail: "A sentence with two facts is judged as one unit." },
 ];
 

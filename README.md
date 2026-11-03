@@ -25,7 +25,7 @@ Each citation gets one verdict, and each claim gets the best verdict among its c
 | `unsupported` | The source is real and readable, but doesn't back the claim. Flagged spans show which part. |
 | `wrong_entity` | The evidence reads as supporting, but a named entity in the claim appears nowhere in the source (e.g. drug Y's trial cited for drug X) |
 | `source_missing` | Cited source isn't listed, or the URL is dead and was never archived (likely fabricated) |
-| `unverifiable` | The source exists but couldn't be read (blocked, link rot, PDF, no text) |
+| `unverifiable` | The source exists but couldn't be read (blocked, link rot, no text) |
 | `uncited` | A factual-looking sentence with no citation |
 
 Every report names its verifier and threshold, because measured citation accuracy swings widely with the verifier (3% to 18% on identical outputs in one study).
@@ -54,7 +54,7 @@ The first run downloads about 4 GB of models from Hugging Face: the two that the
 ## How it works
 
 1. **Parse**: split the answer into sentences, map `[1]`, `[1, 2]`, `[^1]` and inline links to sources, and pull out a trailing reference list. Lead-ins and questions aren't treated as claims.
-2. **Fetch**: download cited URLs (5 MB cap, main-content extraction with trafilatura). A 404/410 or unresolvable domain is checked against the Wayback Machine: archived means link rot, never archived means likely fabricated. 403/429/5xx only mean "couldn't read", and so does a page with under 300 characters of text, which is a cookie wall, bot check or JavaScript shell rather than the article.
+2. **Fetch**: download cited URLs (5 MB cap) and extract the main text: trafilatura for web pages, pypdf for PDFs, with a PDF's wrapped lines and words hyphenated across lines joined back up. A 404/410 or unresolvable domain is checked against the Wayback Machine: archived means link rot, never archived means likely fabricated. 403/429/5xx only mean "couldn't read", and so does a page with under 300 characters of text, which is a cookie wall, bot check or JavaScript shell rather than the article, or a scanned PDF with no text layer.
 3. **Retrieve evidence**: chunk each source into ~120-word windows and pick the top 3 per claim, or the top 10 for the judge ensemble, which turns more of the page into fewer false alarms (see [Fresh 2026 benchmark](#fresh-2026-benchmark)). Hybrid mode (the default when the `dense` extra is installed) ranks passages with both BM25 and `bge-small-en-v1.5` embeddings and merges the rankings with reciprocal rank fusion, so paraphrases aren't missed. `--retrieval bm25` uses keywords only.
 4. **Verify**: the default verifier combines three signals with a logistic regression whose four numbers were fit on 2,000 AttributionBench training rows:
    - [MiniCheck-Flan-T5-Large](https://arxiv.org/abs/2404.10774) (770M), trained to judge whether a document supports every part of a claim. Long sources are split into ~500-word chunks and the claim takes its best chunk.
@@ -134,34 +134,34 @@ The edits are synthetic and the claims come from AttributionBench, so these numb
 | Claude Sonnet 5.5, Claude Code | 255 | **47%** | 25% | 17% | 11% | 6 |
 | Gemini 3.8 Flash, Antigravity CLI | 257 | **41%** | 45% | 7% | 7% | 0 |
 
-Perplexity has one answer (4 citations) so far and isn't ranked. The full table is [`evals/fresh/scoreboard.md`](evals/fresh/scoreboard.md). Its dead-link counts come from a re-audit on 3 November and differ in two places: Gemini shows 7, all one FDA label PDF that answers 404 to upheld but serves the file to a browser, and Claude shows 5, because the Wayback Machine check failed for one of its dead links that day.
+Perplexity has one answer (4 citations) so far and isn't ranked. The full table is [`evals/fresh/scoreboard.md`](evals/fresh/scoreboard.md). Its dead-link counts come from a re-audit on 3 November and differ in two places: Gemini shows 7, all one FDA label PDF that answers upheld with a 404 on most tries but serves the file to a browser, and Claude shows 5, because the Wayback Machine check failed for one of its dead links that day.
 
-**upheld against these labels**: re-audited on 3 November, on the 481 citations whose page it could read, the default pipeline agreed with the label 76% of the time. It flagged 90% of the citations labeled partial or unsupported, and 71% of its flags were right.
+**upheld against these labels**: re-audited on 3 November, on the 492 citations whose page it could read, the default pipeline agreed with the label 76% of the time. It flagged 91% of the citations labeled partial or unsupported, and 70% of its flags were right. 18 of those citations are to PDFs, which upheld now reads; it agreed with the label on 14 of them.
 
-**With the judge**: each verifier on the 474 labeled citations whose page upheld can read, with the page fetched and the passages retrieved the way upheld does it ([`evals/fresh/verifiers.py`](evals/fresh/verifiers.py), without the entity check, pages fetched on 3 November):
+**With the judge**: each verifier on the 499 labeled citations whose page upheld can read, with the page fetched and the passages retrieved the way upheld does it ([`evals/fresh/verifiers.py`](evals/fresh/verifiers.py), without the entity check, pages fetched on 3 November):
 
 | Verifier | Passages per claim | Agreement | Macro-F1 | Bad citations flagged | Good citations flagged |
 |---|---|---|---|---|---|
-| `ensemble` (default) | 3 | 78% | 77.7 | **91%** | 36% |
-| `ensemble+judge` | 10 | **84%** | **84.1** | 87% | **18%** |
-| `judge` alone | 3 | 83% | 82.9 | 84% | 19% |
-| `minicheck` | 3 | 73% | 72.2 | 81% | 37% |
+| `ensemble` (default) | 3 | 78% | 77.2 | **91%** | 36% |
+| `ensemble+judge` | 10 | **84%** | **83.9** | 85% | **18%** |
+| `judge` alone | 3 | 83% | 82.7 | 84% | 18% |
+| `minicheck` | 3 | 72% | 71.6 | 81% | 38% |
 
 The judge ensemble halves the false alarms on good citations and catches a few fewer bad ones. Part of that comes from reading more of the page:
 
 | Passages per claim | 3 | 6 | 10 |
 |---|---|---|---|
-| `ensemble`: macro-F1, good citations flagged | **77.7**, 36% | 76.4, 31% | 76.9, 28% |
-| `ensemble+judge`: macro-F1, good citations flagged | 82.0, 27% | 82.8, 22% | **84.1**, **18%** |
+| `ensemble`: macro-F1, good citations flagged | **77.2**, 36% | 76.6, 30% | 76.8, 28% |
+| `ensemble+judge`: macro-F1, good citations flagged | 81.5, 28% | 83.1, 21% | **83.9**, **18%** |
 
-With more passages the default ensemble flags fewer good citations, but it misses bad ones at the same pace (91% caught at 3 passages, 82% at 10), so it keeps 3. The judge ensemble at 10 still catches 87% and flags a third fewer good citations, so it takes 10. The judge alone does best at 3. The settings were compared on these labels, so 84.1 is a little optimistic; all three are shown. The judge's lead holds when GPT or Gemini does the labeling instead of Claude ([below](#checking-claudes-labels)), but all three labelers are LLMs, so some of the gain may still be LLMs agreeing with each other rather than the judge being right.
+With more passages the default ensemble flags fewer good citations, but it misses bad ones at the same pace (91% caught at 3 passages, 82% at 10), so it keeps 3. The judge ensemble at 10 still catches 85% and flags a third fewer good citations, so it takes 10. The judge alone does best at 3. The settings were compared on these labels, so 83.9 is a little optimistic; all three are shown. The judge's lead holds when GPT or Gemini does the labeling instead of Claude ([below](#checking-claudes-labels)), but all three labelers are LLMs, so some of the gain may still be LLMs agreeing with each other rather than the judge being right.
 
 What this says:
 
 - **About half of each agent's citations fully back their sentence.** Most of the rest are partial: the page has part of the sentence but not a figure, a second fact or a conclusion drawn from it. Citations that back nothing at all are 7–17%.
 - **No clear winner.** Each agent's share has a margin of roughly ±6–9 points, so OpenAI and Claude are level. Gemini's lower share is almost all partial: it is rarely flat wrong, but its sentences often say more than the cited page does.
 - **Dead links are rare**: 7 of 641 citations, 6 of them Claude's.
-- **upheld works as a first filter on real answers.** The default ensemble misses few bad citations, but about 3 in 10 of its flags are false alarms. The judge ensemble halves the false alarms on good citations, from 36% to 18%, and 83% of its flags are right. Two causes are fixed: block pages (cookie walls, VPN and bot checks, JavaScript shells) were judged as if they were the page, which made 7 good citations false alarms, and the supporting sentence often wasn't among the 3 passages retrieved. Of the judge ensemble's 42 remaining false alarms, 38 had the supporting sentence among their 10 passages, so what's left is mostly the verifier: a number restated in other units (4,310 mg of sodium as 10.8 g of salt), a sentence that leans on the one before it ("It also held in June and July."), or several facts in one sentence.
+- **upheld works as a first filter on real answers.** The default ensemble misses few bad citations, but about 3 in 10 of its flags are false alarms. The judge ensemble halves the false alarms on good citations, from 36% to 18%, and 83% of its flags are right. Two causes are fixed: block pages (cookie walls, VPN and bot checks, JavaScript shells) were judged as if they were the page, which made 7 good citations false alarms, and the supporting sentence often wasn't among the 3 passages retrieved. Of the judge ensemble's 43 remaining false alarms, 39 had the supporting sentence among their 10 passages, so what's left is mostly the verifier: a number restated in other units (4,310 mg of sodium as 10.8 g of salt), a sentence that leans on the one before it ("It also held in June and July."), or several facts in one sentence.
 
 #### Checking Claude's labels
 
@@ -175,7 +175,7 @@ GPT (`gpt-6-luna` through the Codex CLI) and Gemini (Gemini 4 Argon through the 
 
 - **Claude agrees with each of them as often as they agree with each other.** Where GPT and Gemini give the same verdict, Claude matches on 118 of 128 citations, and couldn't read the page for 6 more. The other 4 are citations Claude passed and both others called partial, all claims that say a little more than the page: "the DOJ argued" where the page says the court found, or "2.4 to 2.5 ppm" where the page gives 2.4.
 - **No sign that Claude favors its own answers.** Claude's citations get 47% supported from Claude, 45% from GPT and 47% from Gemini. GPT is the strictest labeler on each ranked agent (40% supported overall, against 45% from Claude and from Gemini), and Gemini's citations rank last under all three labelers.
-- **upheld's numbers hold.** On the 106 sampled citations whose page upheld can read, the judge ensemble scores 86.8, 86.7 and 87.7 macro-F1 against Claude's, GPT's and Gemini's labels, and the default ensemble scores 80.9, 80.6 and 76.1.
+- **upheld's numbers hold.** On the 115 sampled citations whose page upheld can read, the judge ensemble scores 84.3, 84.3 and 85.2 macro-F1 against Claude's, GPT's and Gemini's labels, and the default ensemble scores 78.9, 80.2 and 76.1.
 
 Caveats: the labels come from LLMs, not people. The cross-check rules out a bias peculiar to Claude, not one that all three models share, and only 2 citations have hand labels (Claude matched one; on the other it couldn't read the paywalled page). 57 citations (9%) are can't judge, mostly pages that block automated fetches; some blocked pages were read through an archived copy or the paper's abstract and others weren't. And these are agents with search following the same instructions, not the consumer search products.
 
@@ -229,10 +229,10 @@ The labels in `labels-claude.jsonl` came from Claude subagents given `labeling-g
 - **ExpertQA-style claims** (long, technical, expert-written) score 57.8 macro-F1, or 59.3 with the judge, so expect more mistakes on specialist content.
 - **Entity check is a heuristic** (capitalized phrases + word frequency), not NER. It false-alarms on names the source writes differently and misses lowercase entities.
 - **Speed.** The ensemble takes roughly 0.3–1 s per claim per source on an Apple M5 Pro and is several times slower on CPU. MiniCheck dominates. The judge ensemble reads 10 passages per claim, so it takes about 2.5–3 s per claim per source with Metal (the judge about 2 s of that, against 0.75 s on 3 passages), and needs about 9 GB of free memory. `--verifier lexical` is instant but much weaker.
-- **No PDF support yet**; PDF sources come back `unverifiable`.
+- **No OCR.** A scanned PDF with no text layer comes back `unverifiable`, and so does a PDF over the 5 MB cap.
 - **Only short block pages are caught.** A page with under 300 characters of readable text is reported as unreadable rather than judged: in the fresh benchmark those were all cookie walls, VPN or bot checks, or JavaScript apps whose text loads in the browser. A longer stand-in, such as a paywall teaser with the article's first paragraph, is still read as the page.
 - **Sentence-level claims.** A sentence with two facts is judged as one unit.
-- **Some servers answer 404 to anything that isn't a browser**, so upheld can call a live page a dead link. In the fresh benchmark an FDA label PDF did this, which made 7 of Gemini's citations look dead.
+- **Some servers answer 404 to anything that isn't a browser**, so upheld can call a live page a dead link. In the fresh benchmark an FDA label PDF did this on most tries, which made 7 of Gemini's citations look dead.
 - Some sites reject generic user agents. The default names this repo; set `UPHELD_USER_AGENT` to your own project URL if you deploy upheld (Wikipedia returns 403 instead of 404 for missing pages without one).
 
 ## Roadmap
@@ -242,11 +242,11 @@ The labels in `labels-claude.jsonl` came from Claude subagents given `labeling-g
 - ~~Benchmark the verifiers on AttributionBench~~ done
 - ~~Stronger verifier, threshold calibrated on a held-out split~~ done: MiniCheck + ensemble, 64.4 → 74.4 ID macro-F1
 - ~~Edited-claim tests for each failure type~~ done
-- ~~Run the fresh 2026 benchmark~~ done: 641 citations from Claude, OpenAI and Gemini agents, 41–51% fully supported, and upheld flags 90% of the rest. GPT and Gemini relabeled a 150-citation sample and agree with Claude on 92–93% of verdicts, with no sign of self-preference. Next: Perplexity (about $0.25 of OpenRouter credit), and hand labels on the citations the labelers disagree on
+- ~~Run the fresh 2026 benchmark~~ done: 641 citations from Claude, OpenAI and Gemini agents, 41–51% fully supported, and upheld flags 91% of the rest. GPT and Gemini relabeled a 150-citation sample and agree with Claude on 92–93% of verdicts, with no sign of self-preference. Next: Perplexity (about $0.25 of OpenRouter credit), and hand labels on the citations the labelers disagree on
 - ~~Cut false alarms on real pages~~ done: block pages are reported unreadable, and the judge ensemble reads 10 passages per claim, flagging 18% of good citations against the default's 36%
 - ~~LLM judge for hard claims~~ done: Granite Guardian 3.3 8B as an opt-in fourth signal, 74.4 → 76.7 ID macro-F1, wrong-party swaps caught 35% → 64%, fresh-label agreement 78% → 84% with 10 passages per claim. Next: fine-tuning MiniCheck on AttributionBench's train split (the paper's best fine-tuned model reaches 78.5 ID), and a faster judge so it can be the default
 - Speed: MiniCheck in bf16, and batching claims across sources
-- PDF sources
+- ~~PDF sources~~ done: read with pypdf, which made 9 of the 10 PDFs cited in the fresh benchmark readable. Next: OCR for scans
 - ~~Web app~~ done: landing page and playground in `web/`. Next: deploy it with the hosted API, then a browser extension
 
 **Phase 2: train a search agent to cite honestly**
