@@ -286,7 +286,7 @@ export interface GlyphFieldProps {
 export function GlyphField({
   mode,
   text = "upheld",
-  ink = "--accent",
+  ink = "--accent-ink",
   alt = "--bad",
   mute = "--ink-3",
   read = "--ink",

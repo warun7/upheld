@@ -24,7 +24,7 @@ export function Problem() {
               <Ticker value={s.value} />
             </p>
             <p className="mt-5 max-w-[36ch] leading-relaxed text-ink-2">{s.text}</p>
-            <a href={s.href} className="mt-auto inline-flex items-center gap-1 pt-6 font-mono text-xs text-ink-3 transition-colors hover:text-accent">
+            <a href={s.href} className="mt-auto inline-flex items-center gap-1 pt-6 font-mono text-xs text-ink-3 transition-colors hover:text-accent-ink">
               {s.cite}
               <ArrowUpRightIcon size={11} weight="bold" aria-hidden />
             </a>

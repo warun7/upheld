@@ -163,7 +163,7 @@ export function Install() {
                   transition={{ type: "spring", stiffness: 500, damping: 26 }}
                   className="block"
                 >
-                  {copied ? <CheckIcon size={14} weight="bold" className="text-accent" /> : <CopyIcon size={14} weight="bold" />}
+                  {copied ? <CheckIcon size={14} weight="bold" className="text-accent-ink" /> : <CopyIcon size={14} weight="bold" />}
                 </motion.span>
               </AnimatePresence>
               {copied ? "Copied" : "Copy"}

@@ -56,7 +56,7 @@ export function Code({ children, label }: { children: string; label?: string }) 
           onClick={copy}
           className="ml-auto inline-flex h-7 items-center gap-1.5 px-2.5 text-xs text-ink-2 transition-colors hover:bg-cell-2 hover:text-ink"
         >
-          {copied ? <CheckIcon size={13} weight="bold" className="text-accent" /> : <CopyIcon size={13} weight="bold" />}
+          {copied ? <CheckIcon size={13} weight="bold" className="text-accent-ink" /> : <CopyIcon size={13} weight="bold" />}
           {copied ? "Copied" : "Copy"}
         </button>
       </div>
@@ -106,7 +106,7 @@ export function Table({ head, rows, mono = true }: { head: string[]; rows: React
 export function Note({ children }: { children: ReactNode }) {
   return (
     <div className="flex gap-3 border-l-2 border-accent bg-cell px-4 py-3 text-sm leading-relaxed text-ink-2">
-      <InfoIcon size={17} weight="bold" className="mt-0.5 shrink-0 text-accent" aria-hidden />
+      <InfoIcon size={17} weight="bold" className="mt-0.5 shrink-0 text-accent-ink" aria-hidden />
       <div>{children}</div>
     </div>
   );
