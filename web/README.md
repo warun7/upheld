@@ -1,8 +1,8 @@
 # upheld website
 
-The landing page (`/`) and the playground (`/app/`). Vite, React, Tailwind v4 and Motion; it builds to static files in `web/dist`.
+The landing page (`/`), the docs (`/docs/`) and the playground (`/app/`). Vite, React, Tailwind v4 and Motion; it builds to static files in `web/dist`.
 
-The demos on the landing page are real `upheld audit --json` output, saved in `src/data/examples/`, so the page works without a backend. The playground calls the API for anything else.
+The demos on the landing page are real `upheld audit --json` output, saved in `src/data/examples/`, so the page works without a backend. The docs are static too. Only the playground calls the API.
 
 ## Develop
 
@@ -20,9 +20,26 @@ cd web && npm run build             # typecheck, then write web/dist
 uv run upheld serve                 # now serves the site at / and the playground at /app/
 ```
 
-Benchmark numbers live in `src/data/benchmarks.ts`. Update them with the README when the evals change. To refresh an example, rerun `upheld audit <file> --json` and replace its `report` field.
+Benchmark numbers live in `src/data/benchmarks.ts`. Update them with the README when the evals change. To refresh an example, rerun `upheld audit <file> --json` and replace its `report` field. The docs are in `src/docs/content.tsx`; update them when a CLI option, API field or default changes.
+
+`VITE_UPHELD_PLAYGROUND=off npm run build` builds the site without the playground: `/app/` isn't built, the "Open playground" buttons become "Read the docs", and the docs stop mentioning it.
 
 ## Deploy
+
+### The site alone, no backend
+
+The landing page and the docs need no server, so this costs nothing to host.
+
+**Cloudflare Pages** (or any static host):
+
+1. In the Cloudflare dashboard, create a Pages project connected to the GitHub repo.
+2. Root directory `web`, build command `npm ci && npm run build`, output directory `dist`.
+3. Environment variables: `VITE_UPHELD_PLAYGROUND` = `off`, and `NODE_VERSION` = `24` (Vite needs Node 20.19 or newer).
+4. Under Custom domains, add the subdomain, e.g. `upheld.varunsg.com`. If `varunsg.com`'s DNS is on Cloudflare, the record is created for you. Otherwise, add a CNAME from `upheld` to `<project>.pages.dev` at your DNS provider.
+
+Every push to `main` redeploys it.
+
+### With the playground
 
 Two pieces: the static site, and the API that the playground calls.
 
@@ -41,10 +58,9 @@ Two pieces: the static site, and the API that the playground calls.
 
 The image bakes in about 4 GB of models so cold starts don't download them. On the free CPU tier expect a few seconds per claim. `UPHELD_MAX_CONCURRENT=1` queues requests instead of running them side by side.
 
-**Site: Cloudflare Pages** (or any static host).
+**Site: Cloudflare Pages**, set up as above, except:
 
-- Root directory `web`, build command `npm ci && npm run build`, output directory `dist`.
-- Environment variable `VITE_UPHELD_API` = the Space URL, e.g. `https://<user>-upheld.hf.space`.
-- Add the custom domain (`upheld.varunsg.com`) in the Pages project. With the domain's DNS on Cloudflare, that creates the record for you.
+- Remove `VITE_UPHELD_PLAYGROUND`.
+- Set `VITE_UPHELD_API` = the Space URL, e.g. `https://<user>-upheld.hf.space`.
 
 The public API fetches any URL a visitor cites. Private and local addresses are already refused; there is no rate limit yet.
