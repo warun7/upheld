@@ -1,7 +1,8 @@
-import { ArrowRightIcon, CheckIcon, CopyIcon, GithubLogoIcon } from "@phosphor-icons/react";
+import { ArrowRightIcon, CheckIcon, CopyIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { GlyphField } from "../components/GlyphField";
+import { GithubMark } from "../components/icons";
 import { Roll, Section } from "../components/ui";
 import { GITHUB_URL, PRIMARY_CTA } from "../lib/site";
 
@@ -208,7 +209,7 @@ export function FinalCta() {
               <ArrowRightIcon size={15} weight="bold" className="arrow" aria-hidden />
             </a>
             <a href={GITHUB_URL} className="btn btn-outline-invert">
-              <GithubLogoIcon size={17} weight="bold" aria-hidden />
+              <GithubMark />
               <Roll>View on GitHub</Roll>
             </a>
           </div>

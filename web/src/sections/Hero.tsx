@@ -1,6 +1,6 @@
-import { GithubLogoIcon } from "@phosphor-icons/react";
 import { motion, useReducedMotion } from "motion/react";
 import { GlyphField } from "../components/GlyphField";
+import { GithubMark } from "../components/icons";
 import { CopyBar, LinkButton, Section, Ticker } from "../components/ui";
 import { GITHUB_URL, PRIMARY_CTA } from "../lib/site";
 
@@ -71,7 +71,7 @@ export function Hero() {
               <LinkButton href={PRIMARY_CTA.href} arrow>
                 {PRIMARY_CTA.label}
               </LinkButton>
-              <LinkButton href={GITHUB_URL} variant="ghost" icon={<GithubLogoIcon size={17} weight="bold" aria-hidden />}>
+              <LinkButton href={GITHUB_URL} variant="ghost" icon={<GithubMark />}>
                 View on GitHub
               </LinkButton>
             </div>
