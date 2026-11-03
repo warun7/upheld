@@ -17,9 +17,10 @@ const idScore = (name: string) => SYSTEMS.find((s) => s.name === name)?.scores.i
 const LINK_STATUS_NOTE: Record<LinkStatus, string> = {
   provided: "You supplied the source's text, so nothing was fetched.",
   live: "Fetched and read.",
-  link_rot: "Dead now (404, 410 or no such domain), but the Wayback Machine has a copy. Claims citing it are unverifiable.",
+  archived: "Up, but blocked, timed out, a server error or a block page, so upheld read the Wayback Machine's newest copy instead and judged claims against it. The report gives the copy's date.",
+  link_rot: "Dead now (404, 410 or no such domain), but the Wayback Machine has a copy. upheld reads it and judges claims against it, as for archived; if the copy can't be read either, claims citing it are unverifiable.",
   likely_fabricated: "Dead and never archived, so it probably never existed. Claims citing it are source_missing.",
-  unreachable: "Blocked, timed out, under 300 characters of text (a cookie wall, bot check, JavaScript shell or scanned PDF), a PDF over 5 MB, or a file type upheld can't read.",
+  unreachable: "Blocked, timed out or under 300 characters of text (a cookie wall, bot check or JavaScript shell), with no readable archived copy. Or a scanned PDF, a PDF over 5 MB, or a file type upheld can't read, which an archived copy wouldn't change.",
   missing: "The answer cites an id that has no matching source.",
 };
 
@@ -49,7 +50,7 @@ const overview: DocPage = {
       />
       <Note>
         There's no hosted version yet{HAS_PLAYGROUND ? " apart from the playground" : ""}: you run upheld on your own machine. It needs no API key and sends nothing
-        anywhere except requests for the cited pages (and the Wayback Machine, for dead links).
+        anywhere except requests for the cited pages (and the Wayback Machine, for pages that are dead or can't be read).
       </Note>
     </>
   ),
@@ -365,7 +366,7 @@ const input: DocPage = {
           ["sources", "list, optional", "Up to 50. Sources in the answer's own reference list or links are added; one listed here wins over one with the same id."],
           ["sources[].id", "string", <>What the answer cites: <C>"1"</C> for <C>[1]</C>.</>],
           ["sources[].text", "string, optional", "The source's text. When present, it's used as given and the URL isn't fetched."],
-          ["sources[].url", "string, optional", "Fetched when there's no text. Capped at 5 MB; dead links are looked up in the Wayback Machine."],
+          ["sources[].url", "string, optional", "Fetched when there's no text. Capped at 5 MB. A page that's dead or can't be read is read from its newest Wayback Machine copy instead."],
           ["sources[].title", "string, optional", "For your own reference."],
         ]}
       />
@@ -405,8 +406,10 @@ const report: DocPage = {
     }
   ],
   "sources": [
-    {"id": "1", "url": "https://en.wikipedia.org/wiki/Eiffel_Tower", "status": "live", "http_status": 200, "chars": 65753, "note": null},
-    {"id": "2", "url": "https://en.wikipedia.org/wiki/Eiffel_Tower_repainting_schedule", "status": "likely_fabricated", "http_status": 404, "chars": 0, "note": "HTTP 404; never archived"}
+    {"id": "1", "url": "https://en.wikipedia.org/wiki/Eiffel_Tower", "status": "live", "http_status": 200, "chars": 65753, "note": null,
+     "archived_at": null, "archive_url": null},
+    {"id": "2", "url": "https://en.wikipedia.org/wiki/Eiffel_Tower_repainting_schedule", "status": "likely_fabricated", "http_status": 404, "chars": 0,
+     "note": "HTTP 404; never archived", "archived_at": null, "archive_url": null}
   ]
 }`}</Code>
       <Table
@@ -419,6 +422,7 @@ const report: DocPage = {
           ["unsupported_spans", "Character offsets within the claim text of the words the source doesn't back."],
           ["missing_entities", <>Names in the claim that appear nowhere in the source. When the score would otherwise pass, they make the verdict <C>wrong_entity</C>.</>],
           ["sources[].status", <>Whether each cited source could be read. See <A href="#verdicts">link statuses</A>.</>],
+          ["sources[].archived_at, archive_url", <>Set when the text came from a Wayback Machine copy: when the copy was taken, and where to see it. Each check against that source says so in its <C>note</C>.</>],
         ]}
       />
     </>
@@ -435,7 +439,7 @@ const VERDICT_NOTE: Record<Verdict, ReactNode> = {
     </>
   ),
   source_missing: "The cited source isn't listed, or its URL is dead and was never archived: likely made up.",
-  unverifiable: "The source exists but couldn't be read: blocked, no readable text (a scanned PDF, say), or a dead link with only an archived copy.",
+  unverifiable: "The source exists but couldn't be read, and neither could an archived copy: blocked, or no readable text (a scanned PDF, say).",
   uncited: "A factual-looking sentence with no citation. Questions and lead-ins aren't counted.",
 };
 
@@ -508,8 +512,9 @@ const howItWorks: DocPage = {
         </li>
         <li>
           <span className="text-ink">Fetch.</span> Download each cited page and extract its main text, or a PDF's text. A 404, 410 or unknown domain is checked against the Wayback
-          Machine: archived means link rot, never archived means likely fabricated. 403, 429 and 5xx only mean it couldn't be read, and so does a page with under
-          300 characters of text: a cookie wall, bot check or JavaScript shell, not the article.
+          Machine: archived means link rot, never archived means likely fabricated. 403, 429, 5xx and timeouts only mean it couldn't be read, and so does a page with
+          under 300 characters of text: a cookie wall, bot check or JavaScript shell, not the article. Either way, upheld then reads the Wayback Machine's newest copy of
+          the page, if it has one, and the report says so and gives the copy's date.
         </li>
         <li>
           <span className="text-ink">Retrieve.</span> Cut each source into windows of about 120 words and keep the 3 that best match the claim (10 for the judge ensemble), ranked by BM25 and
@@ -543,7 +548,8 @@ const troubleshooting: DocPage = {
         head={["Problem", "What to do"]}
         rows={[
           ["The first run sits there for minutes.", "It's downloading about 4 GB of models from Hugging Face. Later runs load them from the cache."],
-          ["A source is unverifiable but opens fine in your browser.", <>The site blocked the fetch, or builds its text with JavaScript. Paste the page's text into the source's <C>text</C> field.</>],
+          ["A source is unverifiable but opens fine in your browser.", <>The site blocked the fetch, or builds its text with JavaScript, and the Wayback Machine has no readable copy. Paste the page's text into the source's <C>text</C> field.</>],
+          ["A source was read from an archived copy.", <>upheld couldn't read the live page. The copy can be older than the page the answer cited: check <C>archived_at</C>, and paste the current text into the source's <C>text</C> field if the page has changed.</>],
           ["Wikipedia or another site returns 403.", <>Some sites reject generic user agents. Set <C>UPHELD_USER_AGENT</C> to a string with your project's URL.</>],
           ["A localhost URL is refused.", <>Private addresses are blocked by default. Pass <C>--allow-private</C> on the CLI.</>],
           ["It's too slow on CPU.", <>Try <C>--verifier minicheck</C>, or <C>--verifier lexical --retrieval bm25</C> to skip the models entirely.</>],

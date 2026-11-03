@@ -58,12 +58,12 @@ Agreement and macro-F1 of each verifier on the sampled citations whose page uphe
 
 | Verifier | claude agree | claude macro-F1 | gpt agree | gpt macro-F1 | gemini agree | gemini macro-F1 | majority agree | majority macro-F1 |
 |---|---|---|---|---|---|---|---|---|
-| ensemble | 79% | 78.9 | 81% | 80.2 | 77% | 76.1 | 79% | 78.7 |
-| ensemble+judge | 84% | 84.3 | 84% | 84.3 | 85% | 85.2 | 84% | 84.3 |
-| judge | 89% | 88.7 | 85% | 85.1 | 86% | 86.1 | 87% | 86.9 |
-| minicheck | 71% | 71.2 | 71% | 70.9 | 70% | 70.3 | 71% | 71.1 |
-| lettuce | 74% | 73.7 | 72% | 71.4 | 70% | 69.1 | 70% | 69.9 |
-| lexical | 70% | 70.3 | 74% | 73.5 | 75% | 74.6 | 74% | 73.7 |
+| ensemble | 78% | 77.1 | 80% | 78.7 | 76% | 75.1 | 77% | 76.6 |
+| ensemble+judge | 84% | 84.5 | 84% | 83.4 | 86% | 85.9 | 84% | 84.3 |
+| judge | 85% | 85.3 | 83% | 82.7 | 84% | 83.6 | 84% | 83.5 |
+| minicheck | 71% | 71.1 | 70% | 69.6 | 71% | 70.8 | 71% | 70.7 |
+| lettuce | 71% | 70.0 | 70% | 69.0 | 68% | 67.2 | 68% | 67.1 |
+| lexical | 71% | 71.0 | 74% | 73.4 | 77% | 76.2 | 75% | 74.5 |
 
 ## Quotes
 
