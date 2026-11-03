@@ -1,7 +1,10 @@
 import asyncio
+from datetime import UTC, datetime
 
+from upheld import audit as audit_module
 from upheld.audit import run_audit
 from upheld.models import AuditRequest, LinkStatus, Source, Verdict
+from upheld.sources import FetchedSource
 from upheld.verify import LexicalVerifier
 
 SOURCES = [
@@ -66,3 +69,28 @@ def test_retrieves_as_many_passages_as_the_verifier_wants():
         verifier.top_k = top_k
         report = asyncio.run(run_audit(req, verifier, fetch=False))
         assert len(report.claims[0].checks[0].evidence) == top_k
+
+
+def test_archived_copy_is_checked_like_a_live_page(monkeypatch):
+    async def fetch_all(sources, allow_private=False):
+        [source] = sources
+        copy = FetchedSource(
+            source,
+            LinkStatus.ARCHIVED,
+            SOURCES[0].text,
+            http_status=403,
+            note="HTTP 403 (blocked or rate-limited); read from the Wayback Machine copy of 2026-10-11",
+            archived_at=datetime(2026, 10, 11, 19, 44, 35, tzinfo=UTC),
+            archive_url="https://web.archive.org/web/20261011194435/https://example.com/eiffel",
+        )
+        return {source.id: copy}
+
+    monkeypatch.setattr(audit_module, "fetch_all", fetch_all)
+    req = AuditRequest(answer="The Eiffel Tower in Paris is 330 metres tall [1].\n\n[1] https://example.com/eiffel")
+    report = asyncio.run(run_audit(req, LexicalVerifier()))
+    [check] = report.claims[0].checks
+    assert check.verdict == Verdict.SUPPORTED
+    assert check.note == "checked against the Wayback Machine copy of 2026-10-11"
+    [source] = report.sources
+    assert source.status == LinkStatus.ARCHIVED and source.archived_at.year == 2026
+    assert source.archive_url.startswith("https://web.archive.org/web/20261011194435/")

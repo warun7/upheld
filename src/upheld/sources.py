@@ -2,8 +2,9 @@
 
 A dead link (404/410, or a domain that doesn't resolve) is checked against
 the Wayback Machine: an archived copy means link rot, no copy at all means the
-URL most likely never existed. Other failures (403, 429, 5xx, timeouts) only
-say the page couldn't be read, not that it's fake.
+URL most likely never existed. Other failures (401, 403, 429, 5xx, timeouts, a
+block page) only say the page couldn't be read, not that it's fake. In both
+cases the newest archived copy, if there is one, is read instead.
 """
 
 import asyncio
@@ -11,8 +12,11 @@ import ipaddress
 import os
 import re
 import socket
+from contextlib import nullcontext
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from io import BytesIO
+from typing import Literal
 from urllib.parse import urlparse
 
 import httpx
@@ -31,6 +35,8 @@ GONE = {404, 410}
 # benchmark every such page was a cookie wall, a VPN or bot check, or a JavaScript app whose
 # text only loads in a browser. The shortest real page there had 647 characters.
 MIN_TEXT_CHARS = 300
+# Archive lookups and fetches in flight at once per audit, to stay well inside the Wayback Machine's rate limits.
+ARCHIVE_CONCURRENCY = 4
 
 
 @dataclass
@@ -40,6 +46,8 @@ class FetchedSource:
     text: str = ""
     http_status: int | None = None
     note: str | None = None
+    archived_at: datetime | None = None  # set when the text comes from an archived copy
+    archive_url: str | None = None
 
 
 class BlockedURL(ValueError):
@@ -102,14 +110,16 @@ def unwrap(text: str, compounds: set[str] | frozenset[str] = frozenset()) -> str
     return " ".join(text.split())
 
 
-async def _wayback_has_copy(client: httpx.AsyncClient, url: str) -> bool | None:
+async def _wayback_snapshot(client: httpx.AsyncClient, url: str) -> tuple[str, str] | Literal[False] | None:
+    """(timestamp, original URL) of the newest copy archived with HTTP 200, False if there is none, None if the lookup failed."""
     # The CDX API is less aggressively rate-limited than /wayback/available.
+    params = {"url": url, "filter": "statuscode:200", "limit": -1, "fl": "timestamp,original", "output": "json"}
     try:
-        r = await client.get("https://web.archive.org/cdx/search/cdx", params={"url": url, "limit": 1, "output": "json"})
+        r = await client.get("https://web.archive.org/cdx/search/cdx", params=params)
         r.raise_for_status()
         rows = r.json()  # [] when nothing is archived, else a header row plus results
-        return len(rows) > 1
-    except (httpx.HTTPError, ValueError):
+        return (rows[1][0], rows[1][1]) if len(rows) > 1 else False
+    except (httpx.HTTPError, ValueError, IndexError):
         return None
 
 
@@ -123,56 +133,102 @@ async def _get_capped(client: httpx.AsyncClient, url: str) -> tuple[httpx.Respon
         return r, bytes(body)
 
 
-async def fetch_source(client: httpx.AsyncClient, source: Source, allow_private: bool = False) -> FetchedSource:
+async def _extract(response: httpx.Response, body: bytes, url: str) -> tuple[str, str | None]:
+    """The document's text, or why the document itself can't be read (so an archived copy of it couldn't be either)."""
+    content_type = response.headers.get("content-type", "")
+    if "pdf" in content_type or body.startswith(b"%PDF-"):
+        # A PDF cut off at the cap has lost the index at its end and won't parse.
+        if len(body) > MAX_BYTES:
+            return "", f"PDF over {MAX_BYTES // 1_000_000} MB"
+        text = await asyncio.to_thread(extract_pdf_text, body)
+        if len(text) < MIN_TEXT_CHARS:
+            return "", f"PDF had {len(text)} characters of text: likely a scan with no text layer, or a damaged file"
+        return text, None
+    if "html" not in content_type and "text" not in content_type:
+        return "", f"unsupported content type: {content_type or 'unknown'}"
+    html = body.decode(response.encoding or "utf-8", errors="replace")
+    return await asyncio.to_thread(extract_text, html, url), None
+
+
+def _stand_in(text: str) -> str | None:
+    """Why the page looks like something served in place of the real one, if it does."""
+    if not (chars := len(text.strip())):
+        return "page had no extractable text"
+    if chars < MIN_TEXT_CHARS:
+        return f"page had only {chars} characters of text: likely a cookie wall, bot check or page that needs JavaScript"
+    return None
+
+
+async def fetch_source(
+    client: httpx.AsyncClient, source: Source, allow_private: bool = False, archive_slots: asyncio.Semaphore | None = None
+) -> FetchedSource:
     if source.text:
         return FetchedSource(source, LinkStatus.PROVIDED, source.text)
     if not source.url:
         return FetchedSource(source, LinkStatus.UNREACHABLE, note="no URL or text given")
 
+    http_status, dead = None, False
     try:
         response, body = await _get_capped(client, source.url)
     except UnknownHost as e:
-        archived = await _wayback_has_copy(client, source.url)
-        return _dead(source, None, archived, str(e))
+        reason, dead = str(e), True
     except BlockedURL as e:
         return FetchedSource(source, LinkStatus.UNREACHABLE, note=str(e))
     except httpx.HTTPError as e:
-        return FetchedSource(source, LinkStatus.UNREACHABLE, note=f"request failed: {type(e).__name__}")
-
-    if response.status_code in GONE:
-        archived = await _wayback_has_copy(client, source.url)
-        return _dead(source, response.status_code, archived, f"HTTP {response.status_code}")
-    if response.status_code >= 400:
-        reason = "blocked or rate-limited" if response.status_code in (401, 403, 429) else "server error"
-        return FetchedSource(source, LinkStatus.UNREACHABLE, http_status=response.status_code, note=f"HTTP {response.status_code} ({reason})")
-
-    content_type = response.headers.get("content-type", "")
-    unreadable = lambda note: FetchedSource(source, LinkStatus.UNREACHABLE, http_status=response.status_code, note=note)  # noqa: E731
-    if "pdf" in content_type or body.startswith(b"%PDF-"):
-        # A PDF cut off at the cap has lost the index at its end and won't parse.
-        if len(body) > MAX_BYTES:
-            return unreadable(f"PDF over {MAX_BYTES // 1_000_000} MB")
-        text = await asyncio.to_thread(extract_pdf_text, body)
-        if len(text) < MIN_TEXT_CHARS:
-            return unreadable(f"PDF had {len(text)} characters of text: likely a scan with no text layer, or a damaged file")
-        return FetchedSource(source, LinkStatus.LIVE, text, http_status=response.status_code)
-    if "html" not in content_type and "text" not in content_type:
-        return unreadable(f"unsupported content type: {content_type or 'unknown'}")
-    html = body.decode(response.encoding or "utf-8", errors="replace")
-    text = await asyncio.to_thread(extract_text, html, str(response.url))
-    if not (chars := len(text.strip())):
-        return unreadable("page had no extractable text")
-    if chars < MIN_TEXT_CHARS:
-        return unreadable(f"page had only {chars} characters of text: likely a cookie wall, bot check or page that needs JavaScript")
-    return FetchedSource(source, LinkStatus.LIVE, text, http_status=response.status_code)
+        reason = f"request failed: {type(e).__name__}"
+    else:
+        http_status = response.status_code
+        if http_status in GONE:
+            reason, dead = f"HTTP {http_status}", True
+        elif http_status >= 400:
+            reason = f"HTTP {http_status} ({'blocked or rate-limited' if http_status in (401, 403, 429) else 'server error'})"
+        else:
+            text, problem = await _extract(response, body, str(response.url))
+            if problem:
+                return FetchedSource(source, LinkStatus.UNREACHABLE, http_status=http_status, note=problem)
+            if not (reason := _stand_in(text)):
+                return FetchedSource(source, LinkStatus.LIVE, text, http_status=http_status)
+    async with archive_slots or nullcontext():
+        return await _from_archive(client, source, source.url, http_status, reason, dead)
 
 
-def _dead(source: Source, http_status: int | None, archived: bool | None, reason: str) -> FetchedSource:
-    if archived is True:
-        return FetchedSource(source, LinkStatus.LINK_ROT, http_status=http_status, note=f"{reason}; archived copy exists")
-    if archived is False:
-        return FetchedSource(source, LinkStatus.LIKELY_FABRICATED, http_status=http_status, note=f"{reason}; never archived")
-    return FetchedSource(source, LinkStatus.UNREACHABLE, http_status=http_status, note=f"{reason}; archive check failed")
+async def _from_archive(client: httpx.AsyncClient, source: Source, url: str, http_status: int | None, reason: str, dead: bool) -> FetchedSource:
+    """Read the newest archived copy of a page that is dead or couldn't be read live."""
+    snapshot = await _wayback_snapshot(client, url)
+    if snapshot is None:
+        return FetchedSource(source, LinkStatus.UNREACHABLE, http_status=http_status, note=f"{reason}; archive check failed")
+    if snapshot is False:
+        status = LinkStatus.LIKELY_FABRICATED if dead else LinkStatus.UNREACHABLE
+        return FetchedSource(source, status, http_status=http_status, note=f"{reason}; never archived")
+
+    timestamp, original = snapshot
+    archived_at = datetime.strptime(timestamp, "%Y%m%d%H%M%S").replace(tzinfo=UTC)
+    copy = f"Wayback Machine copy of {archived_at:%Y-%m-%d}"
+    text, problem = "", None
+    try:
+        # id_ serves the page as archived, without the Wayback Machine's toolbar or rewritten links.
+        response, body = await _get_capped(client, f"https://web.archive.org/web/{timestamp}id_/{original}")
+    except (httpx.HTTPError, ValueError) as e:  # BlockedURL is a ValueError
+        problem = f"request failed: {type(e).__name__}"
+    else:
+        if response.status_code >= 400:
+            problem = f"HTTP {response.status_code}"
+        else:
+            text, problem = await _extract(response, body, original)
+            problem = problem or _stand_in(text)
+    if problem:
+        status = LinkStatus.LINK_ROT if dead else LinkStatus.UNREACHABLE
+        failed = f"so did the {copy}" if problem == reason else f"{copy} couldn't be read: {problem}"
+        return FetchedSource(source, status, http_status=http_status, note=f"{reason}; {failed}")
+    return FetchedSource(
+        source,
+        LinkStatus.LINK_ROT if dead else LinkStatus.ARCHIVED,
+        text,
+        http_status=http_status,
+        note=f"{reason}; read from the {copy}",
+        archived_at=archived_at,
+        archive_url=f"https://web.archive.org/web/{timestamp}/{original}",
+    )
 
 
 async def fetch_all(sources: list[Source], allow_private: bool = False) -> dict[str, FetchedSource]:
@@ -183,6 +239,7 @@ async def fetch_all(sources: list[Source], allow_private: bool = False) -> dict[
 
     headers = {"User-Agent": USER_AGENT}
     hooks = {"request": [guard]}
+    archive_slots = asyncio.Semaphore(ARCHIVE_CONCURRENCY)
     async with httpx.AsyncClient(follow_redirects=True, timeout=TIMEOUT, headers=headers, event_hooks=hooks) as client:
-        results = await asyncio.gather(*(fetch_source(client, s, allow_private) for s in sources))
+        results = await asyncio.gather(*(fetch_source(client, s, allow_private, archive_slots) for s in sources))
     return {r.source.id: r for r in results}

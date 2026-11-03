@@ -36,7 +36,7 @@ export const VERDICTS: Record<Verdict, { label: string; short: string; icon: Ico
   },
   unverifiable: {
     label: "Unverifiable",
-    short: "The source exists but couldn't be read: blocked, no readable text, or link rot.",
+    short: "The source exists but couldn't be read, and neither could an archived copy: blocked, or no readable text.",
     icon: EyeSlashIcon,
     tone: "text-ink-2",
   },
@@ -60,6 +60,7 @@ export const VERDICT_ORDER: Verdict[] = [
 export const LINK_STATUS: Record<LinkStatus, { label: string; tone: string }> = {
   provided: { label: "Text provided", tone: "text-ink-2" },
   live: { label: "Live", tone: "text-accent-ink" },
+  archived: { label: "Read from an archived copy", tone: "text-ink-2" },
   link_rot: { label: "Dead, archived copy exists", tone: "text-warn" },
   likely_fabricated: { label: "Dead and never archived", tone: "text-bad" },
   unreachable: { label: "Couldn't read", tone: "text-ink-2" },

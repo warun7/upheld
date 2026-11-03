@@ -1,7 +1,7 @@
 // Types mirror src/upheld/models.py. Keep them in sync when the report changes.
 
 export type Verdict = "supported" | "unsupported" | "wrong_entity" | "source_missing" | "unverifiable" | "uncited";
-export type LinkStatus = "provided" | "live" | "link_rot" | "likely_fabricated" | "unreachable" | "missing";
+export type LinkStatus = "provided" | "live" | "archived" | "link_rot" | "likely_fabricated" | "unreachable" | "missing";
 
 export interface Source {
   id: string;
@@ -57,6 +57,8 @@ export interface SourceReport {
   http_status: number | null;
   chars: number;
   note: string | null;
+  archived_at?: string | null;
+  archive_url?: string | null;
 }
 
 export interface AuditReport {

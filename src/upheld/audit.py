@@ -21,7 +21,6 @@ from upheld.parse import Claim, extract_reference_list, is_claim, split_claims
 from upheld.sources import FetchedSource, fetch_all
 from upheld.verify import SupportResult, Verifier
 
-_UNREADABLE = {LinkStatus.LINK_ROT, LinkStatus.UNREACHABLE}
 # ~1,000 words of evidence per verifier call, well inside LettuceDetect's 4,096 tokens. A claim that
 # retrieves more on its own (the judge ensemble takes 10) is checked by itself.
 MAX_PASSAGES = 8
@@ -89,12 +88,12 @@ def _check_claims(
     # One verifier call per source (in batches that fit the model's context), covering every claim that cites it.
     indexes = {source_id: SourceIndex(loaded[source_id].text, embedder) for source_id in claims_by_source}
     for source_id, claim_ids in claims_by_source.items():
-        text = loaded[source_id].text
+        source = loaded[source_id]
         evidence = {i: indexes[source_id].search(claims[i].text, top_k) for i in claim_ids}
         for batch, passages in _batches(claim_ids, evidence):
             scored = verifier.check(answer, [ranges[i] for i in batch], passages, question)
             for i, result in zip(batch, scored):
-                checks[i, source_id] = _citation_check(source_id, claims[i].text, text, result, evidence[i], verifier)
+                checks[i, source_id] = _citation_check(source_id, claims[i].text, source, result, evidence[i], verifier)
 
     results: list[ClaimResult] = []
     for i, claim in enumerate(claims):
@@ -141,15 +140,15 @@ def _precheck(fetched: FetchedSource | None, source_id: str) -> CitationCheck | 
         return CitationCheck(source_id=source_id, verdict=Verdict.SOURCE_MISSING, note=f"no source listed for [{source_id}]")
     if fetched.status == LinkStatus.LIKELY_FABRICATED:
         return CitationCheck(source_id=source_id, verdict=Verdict.SOURCE_MISSING, note=fetched.note)
-    if fetched.status in _UNREADABLE:
+    if not fetched.text:
         return CitationCheck(source_id=source_id, verdict=Verdict.UNVERIFIABLE, note=fetched.note)
     return None
 
 
 def _citation_check(
-    source_id: str, claim: str, source_text: str, result: SupportResult, passages: list[tuple[str, float]], verifier: Verifier
+    source_id: str, claim: str, source: FetchedSource, result: SupportResult, passages: list[tuple[str, float]], verifier: Verifier
 ) -> CitationCheck:
-    missing = missing_entities(claim, source_text)
+    missing = missing_entities(claim, source.text)
     if result.score < verifier.threshold:
         verdict = Verdict.UNSUPPORTED
     elif missing:
@@ -163,6 +162,7 @@ def _citation_check(
         unsupported_spans=result.spans,
         missing_entities=missing,
         evidence=[Evidence(source_id=source_id, passage=p, score=s) for p, s in passages],
+        note=f"checked against the Wayback Machine copy of {source.archived_at:%Y-%m-%d}" if source.archived_at else None,
     )
 
 
@@ -196,7 +196,16 @@ def _claim_verdict(
 
 
 def _source_report(f: FetchedSource) -> SourceReport:
-    return SourceReport(id=f.source.id, url=f.source.url, status=f.status, http_status=f.http_status, chars=len(f.text), note=f.note)
+    return SourceReport(
+        id=f.source.id,
+        url=f.source.url,
+        status=f.status,
+        http_status=f.http_status,
+        chars=len(f.text),
+        note=f.note,
+        archived_at=f.archived_at,
+        archive_url=f.archive_url,
+    )
 
 
 def _missing_report(source_id: str) -> SourceReport:

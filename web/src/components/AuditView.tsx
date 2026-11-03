@@ -204,7 +204,7 @@ export function ClaimDetail({ claim, report, compact = false }: { claim: ClaimRe
             {check.verdict === "source_missing" && src?.note && (
               <p className="text-sm text-ink-2">
                 {src.status === "likely_fabricated"
-                  ? `The page returns ${src.http_status ?? "an error"} and the Wayback Machine has never seen it, so it probably never existed.`
+                  ? `The page returns ${src.http_status ?? "an error"} and the Wayback Machine has no copy of it, so it probably never existed.`
                   : src.note}
               </p>
             )}
@@ -214,7 +214,19 @@ export function ClaimDetail({ claim, report, compact = false }: { claim: ClaimRe
                 {trimPassage(best.passage, compact ? 150 : 300)}
               </blockquote>
             )}
-            {check.note && <p className="text-sm text-ink-3">{check.note}</p>}
+            {check.note && (
+              <p className="text-sm text-ink-3">
+                {check.note}
+                {src?.archive_url && (
+                  <>
+                    {" · "}
+                    <a href={src.archive_url} className="text-ink-2 underline hover:text-ink" target="_blank" rel="noreferrer">
+                      open the copy
+                    </a>
+                  </>
+                )}
+              </p>
+            )}
           </div>
         );
       })}

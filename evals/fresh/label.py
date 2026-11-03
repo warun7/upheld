@@ -84,6 +84,7 @@ def prepare(verifier_name: str, threshold: float | None, device: str | None) -> 
                             "source_id": check.source_id,
                             "url": source.url if source else None,
                             "source_status": source.status.value if source else "missing",
+                            "archived_at": source.archived_at.isoformat() if source and source.archived_at else None,
                             "passages": [e.passage for e in check.evidence],
                             "upheld_verdict": check.verdict.value,
                             "support_score": check.support_score,

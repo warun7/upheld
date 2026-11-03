@@ -25,7 +25,7 @@ import math
 from pathlib import Path
 
 from upheld.evidence import SourceIndex, make_embedder
-from upheld.models import LinkStatus, Source
+from upheld.models import Source
 from upheld.sources import fetch_all
 from upheld.verify import EnsembleVerifier, GraniteJudgeVerifier, LettuceVerifier, LexicalVerifier, MiniCheckVerifier, make_verifier
 
@@ -70,7 +70,7 @@ def _items() -> list[dict]:
     out = []
     for item in _labeled():
         path = _source_path(item["url"])
-        if path.exists() and (page := json.loads(path.read_text()))["status"] == LinkStatus.LIVE:
+        if path.exists() and (page := json.loads(path.read_text()))["text"]:  # live, or read from an archived copy
             out.append(item | {"page": page["text"]})
     return out
 
@@ -80,8 +80,11 @@ def pages() -> None:
     urls = sorted({i["url"] for i in _labeled() if not _source_path(i["url"]).exists()})
     fetched = asyncio.run(fetch_all([Source(id=str(n), url=url) for n, url in enumerate(urls)]))
     for f in fetched.values():
-        _source_path(f.source.url).write_text(json.dumps({"url": f.source.url, "status": f.status.value, "note": f.note, "text": f.text}))
-    print(f"{sum(f.status == LinkStatus.LIVE for f in fetched.values())} of {len(urls)} new pages readable, in {SOURCES}")
+        archived_at = f.archived_at.isoformat() if f.archived_at else None
+        page = {"url": f.source.url, "status": f.status.value, "note": f.note, "archived_at": archived_at, "text": f.text}
+        _source_path(f.source.url).write_text(json.dumps(page))
+    archived = sum(bool(f.archived_at) for f in fetched.values())
+    print(f"{sum(bool(f.text) for f in fetched.values())} of {len(urls)} new pages readable ({archived} from an archived copy), in {SOURCES}")
 
 
 def _evidence(items: list[dict]) -> dict[str, dict[str, list[str]]]:

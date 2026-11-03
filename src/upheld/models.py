@@ -1,3 +1,4 @@
+from datetime import datetime
 from enum import StrEnum
 
 from pydantic import BaseModel, Field
@@ -19,9 +20,10 @@ class AuditRequest(BaseModel):
 class LinkStatus(StrEnum):
     PROVIDED = "provided"  # text supplied by the caller, nothing fetched
     LIVE = "live"
-    LINK_ROT = "link_rot"  # dead now, but the Wayback Machine has a copy
+    ARCHIVED = "archived"  # up, but couldn't be read (blocked, say), so the Wayback Machine's copy was read
+    LINK_ROT = "link_rot"  # dead now, but the Wayback Machine has a copy; read when it's readable
     LIKELY_FABRICATED = "likely_fabricated"  # dead and never archived
-    UNREACHABLE = "unreachable"  # network error, blocked, or unsupported content
+    UNREACHABLE = "unreachable"  # unreadable live and no readable archived copy, or a file type upheld can't read
     MISSING = "missing"  # cited id has no matching source
 
 
@@ -75,6 +77,8 @@ class SourceReport(BaseModel):
     http_status: int | None = None
     chars: int = 0
     note: str | None = None
+    archived_at: datetime | None = Field(default=None, description="When the archived copy the text came from was captured.")
+    archive_url: str | None = Field(default=None, description="That copy in the Wayback Machine.")
 
 
 class Summary(BaseModel):

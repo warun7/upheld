@@ -1,4 +1,5 @@
 import asyncio
+from datetime import UTC, datetime
 
 import httpx
 import pytest
@@ -97,3 +98,99 @@ def test_pdf_over_the_size_cap_is_unreadable(monkeypatch):
     fetched = fetch(pdf, "application/pdf")
     assert fetched.status == LinkStatus.UNREACHABLE
     assert fetched.note.startswith("PDF over")
+
+
+URL = "https://example.com/page"
+CDX = "https://web.archive.org/cdx/search/cdx"
+COPY = f"https://web.archive.org/web/20261011194435id_/{URL}"
+
+
+def fetch_with_archive(live: httpx.Response, copies: list[list[str]], copy: httpx.Response | None = None):
+    """Fetch URL, which answers with live; the Wayback Machine lists copies and serves copy. Returns the result and every URL requested."""
+    requested = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        requested.append(request.url)
+        if str(request.url).startswith(CDX):
+            return httpx.Response(200, json=[["timestamp", "original"], *copies] if copies else [])
+        if str(request.url) == COPY and copy is not None:
+            return copy
+        if str(request.url) == URL:
+            return live
+        return httpx.Response(404)
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as client:
+            return await fetch_source(client, Source(id="1", url=URL))
+
+    return asyncio.run(run()), requested
+
+
+def html(body: str) -> httpx.Response:
+    return httpx.Response(200, text=body, headers={"content-type": "text/html; charset=utf-8"})
+
+
+def test_blocked_page_is_read_from_its_archived_copy():
+    fetched, requested = fetch_with_archive(httpx.Response(403), [["20261011194435", URL]], html(ARTICLE))
+    assert fetched.status == LinkStatus.ARCHIVED
+    assert "ASPREE" in fetched.text
+    assert fetched.http_status == 403
+    assert fetched.archived_at == datetime(2026, 10, 11, 19, 44, 35, tzinfo=UTC)
+    assert fetched.archive_url == f"https://web.archive.org/web/20261011194435/{URL}"
+    assert fetched.note == "HTTP 403 (blocked or rate-limited); read from the Wayback Machine copy of 2026-10-11"
+    # One lookup for the newest copy archived with HTTP 200, and one fetch of it.
+    [lookup] = [u for u in requested if str(u).startswith(CDX)]
+    assert lookup.params["filter"] == "statuscode:200" and lookup.params["limit"] == "-1"
+    assert len(requested) == 3
+
+
+def test_dead_link_is_read_from_its_archived_copy():
+    fetched, _ = fetch_with_archive(httpx.Response(404), [["20261011194435", URL]], html(ARTICLE))
+    assert fetched.status == LinkStatus.LINK_ROT
+    assert "ASPREE" in fetched.text
+    assert fetched.archived_at is not None
+    assert fetched.note == "HTTP 404; read from the Wayback Machine copy of 2026-10-11"
+
+
+def test_block_page_live_is_read_from_its_archived_copy():
+    fetched, _ = fetch_with_archive(html(COOKIE_WALL), [["20261011194435", URL]], html(ARTICLE))
+    assert fetched.status == LinkStatus.ARCHIVED
+    assert "ASPREE" in fetched.text
+    assert fetched.note.startswith("page had only")
+
+
+def test_without_an_archived_copy_a_blocked_page_stays_unreadable():
+    fetched, _ = fetch_with_archive(httpx.Response(403), [])
+    assert fetched.status == LinkStatus.UNREACHABLE
+    assert fetched.text == "" and fetched.archived_at is None
+    assert fetched.note == "HTTP 403 (blocked or rate-limited); never archived"
+
+
+def test_without_an_archived_copy_a_dead_link_is_likely_fabricated():
+    fetched, _ = fetch_with_archive(httpx.Response(404), [])
+    assert fetched.status == LinkStatus.LIKELY_FABRICATED
+    assert fetched.note == "HTTP 404; never archived"
+
+
+def test_archived_block_page_is_still_unreadable():
+    fetched, _ = fetch_with_archive(httpx.Response(403), [["20261011194435", URL]], html(COOKIE_WALL))
+    assert fetched.status == LinkStatus.UNREACHABLE
+    assert fetched.text == "" and fetched.archived_at is None
+    assert "Wayback Machine copy of 2026-10-11 couldn't be read: page had only" in fetched.note
+    fetched, _ = fetch_with_archive(html(COOKIE_WALL), [["20261011194435", URL]], html(COOKIE_WALL))
+    assert fetched.note.endswith("; so did the Wayback Machine copy of 2026-10-11")
+
+
+def test_dead_link_with_an_unreadable_copy_is_link_rot_without_text():
+    fetched, _ = fetch_with_archive(httpx.Response(410), [["20261011194435", URL]], httpx.Response(503))
+    assert fetched.status == LinkStatus.LINK_ROT
+    assert fetched.text == ""
+    assert fetched.note == "HTTP 410; Wayback Machine copy of 2026-10-11 couldn't be read: HTTP 503"
+
+
+def test_unreadable_document_is_not_looked_up_in_the_archive():
+    # A scan has no text layer in its archived copy either.
+    scan = httpx.Response(200, content=make_pdf([]), headers={"content-type": "application/pdf"})
+    fetched, requested = fetch_with_archive(scan, [["20261011194435", URL]], html(ARTICLE))
+    assert fetched.status == LinkStatus.UNREACHABLE
+    assert requested == [httpx.URL(URL)]
