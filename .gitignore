@@ -11,6 +11,8 @@ evals/fresh/raw/
 evals/fresh/items.jsonl
 # Page text fetched for the label cross-check; rebuild with crosscheck.py pages
 evals/fresh/pages/
+# Page text fetched by upheld for the context check; rebuild with context.py pages
+evals/fresh/sources/
 .DS_Store
 
 # Personal notes, not for the public repo

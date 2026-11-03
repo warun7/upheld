@@ -26,6 +26,7 @@ class SupportResult:
 class Verifier(Protocol):
     name: str
     threshold: float  # a claim is supported when score >= threshold
+    top_k: int  # evidence passages retrieved per claim from each source
 
     def check(
         self, answer: str, claims: list[tuple[int, int]], passages: list[str], question: str | None = None
@@ -48,6 +49,8 @@ class LexicalVerifier:
     learned verifiers have something to beat in evals, and so tests run
     without downloading a model.
     """
+
+    top_k = 3
 
     def __init__(self, threshold: float = 0.7):
         self.threshold = threshold
@@ -83,6 +86,7 @@ class LettuceVerifier:
     tokens, which matches LettuceDetect's own decision rule at threshold 0.5.
     """
 
+    top_k = 3
     DEFAULT_MODEL = "KRLabsOrg/lettucedect-base-modernbert-en-v1"
 
     def __init__(self, model_path: str = DEFAULT_MODEL, threshold: float = 0.5, device: str | None = None):
@@ -136,6 +140,7 @@ class MiniCheckVerifier:
     gives a score but no flagged spans.
     """
 
+    top_k = 3
     DEFAULT_MODEL = "lytang/MiniCheck-Flan-T5-Large"
     CHUNK_WORDS = 500
     MAX_TOKENS = 2048
@@ -194,6 +199,7 @@ class GraniteJudgeVerifier:
     prompt, so only the claim is read again.
     """
 
+    top_k = 3
     GGUF_REPO = "ibm-granite/granite-guardian-3.3-8b-GGUF"
     GGUF_FILE = "granite-guardian-3.3-8b-Q8_0.gguf"
     TOKENIZER = "ibm-granite/granite-guardian-3.3-8b"  # its chat template, which llama.cpp can't render with documents
@@ -259,8 +265,8 @@ class EnsembleVerifier:
     dev split (evals/attributionbench.py report prints them).
 
     with_judge adds the Granite judge as a fourth member, with its own fit. It
-    is the most accurate setup but needs the judge extra, a 9 GB model and
-    about a second per claim, so it is opt-in.
+    is the most accurate setup but needs the judge extra, a 9 GB model and,
+    reading 10 passages per claim, about 2.5 seconds per claim, so it is opt-in.
     """
 
     WEIGHTS = {"minicheck": 1.61, "lexical": 1.33, "lettuce": 0.52}
@@ -269,6 +275,11 @@ class EnsembleVerifier:
     JUDGE_WEIGHTS = {"judge": 1.57, "minicheck": 0.64, "lexical": 0.91, "lettuce": 0.28}
     JUDGE_BIAS = -1.56
     JUDGE_THRESHOLD = 0.48
+    # With the judge, reading more of the page cuts false alarms: on the fresh benchmark, 10 passages
+    # per claim instead of 3 lifted macro-F1 from 82.0 to 84.1 and flagged 18% of good citations instead
+    # of 27% (evals/fresh/verifiers.py). The default ensemble gains nothing from more, so it keeps 3.
+    TOP_K = 3
+    JUDGE_TOP_K = 10
 
     def __init__(self, threshold: float | None = None, device: str | None = None, with_judge: bool = False):
         self.members: dict[str, Verifier] = {
@@ -280,6 +291,7 @@ class EnsembleVerifier:
             self.members["judge"] = GraniteJudgeVerifier(device=device)
         self.weights, self.bias = (self.JUDGE_WEIGHTS, self.JUDGE_BIAS) if with_judge else (self.WEIGHTS, self.BIAS)
         self.threshold = threshold if threshold is not None else self.JUDGE_THRESHOLD if with_judge else self.THRESHOLD
+        self.top_k = self.JUDGE_TOP_K if with_judge else self.TOP_K
         self.name = f"ensemble:{'+'.join(self.members)}@{self.threshold}"
 
     def check(

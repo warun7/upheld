@@ -55,3 +55,14 @@ def test_url_without_fetch_is_unverifiable():
     report = asyncio.run(run_audit(req, LexicalVerifier(), fetch=False))
     assert report.claims[0].verdict == Verdict.UNVERIFIABLE
     assert report.sources[0].url == "https://example.com/eiffel"
+
+
+def test_retrieves_as_many_passages_as_the_verifier_wants():
+    topics = ["the tower's paint", "the lifts", "the lighting", "the restaurants", "the visitor numbers"]
+    page = " ".join(f"This section covers {t}. " + "It adds more detail about the history of the site. " * 15 for t in topics)
+    verifier = LexicalVerifier()
+    req = AuditRequest(answer="The Eiffel Tower has lifts [1].", sources=[Source(id="1", text=page)])
+    for top_k in (1, 3):
+        verifier.top_k = top_k
+        report = asyncio.run(run_audit(req, verifier, fetch=False))
+        assert len(report.claims[0].checks[0].evidence) == top_k

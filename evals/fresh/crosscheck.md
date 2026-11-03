@@ -54,16 +54,16 @@ Share of each provider's sampled citations labeled supported. A labeler that fav
 
 ## upheld against each labeler
 
-Agreement and macro-F1 of each verifier on the sampled citations with passages, at its AttributionBench dev threshold. Majority is the binary verdict at least two labelers share (139 citations).
+Agreement and macro-F1 of each verifier on the sampled citations whose page upheld can read, as shipped (its passages per claim and its AttributionBench dev threshold; see verifiers.py). Majority is the binary verdict at least two labelers share (139 citations).
 
 | Verifier | claude agree | claude macro-F1 | gpt agree | gpt macro-F1 | gemini agree | gemini macro-F1 | majority agree | majority macro-F1 |
 |---|---|---|---|---|---|---|---|---|
-| ensemble | 79% | 79.0 | 80% | 79.4 | 77% | 76.8 | 78% | 77.7 |
-| ensemble+judge | 84% | 84.1 | 85% | 84.7 | 86% | 85.8 | 85% | 84.8 |
-| judge | 88% | 87.8 | 85% | 84.8 | 86% | 85.8 | 87% | 86.8 |
-| minicheck | 71% | 70.9 | 70% | 69.3 | 71% | 70.5 | 70% | 69.5 |
-| lettuce | 73% | 72.4 | 74% | 72.6 | 71% | 70.2 | 72% | 71.0 |
-| lexical | 72% | 71.8 | 75% | 74.0 | 75% | 75.3 | 75% | 74.3 |
+| ensemble | 81% | 80.9 | 81% | 80.6 | 76% | 76.1 | 79% | 78.9 |
+| ensemble+judge | 87% | 86.8 | 87% | 86.7 | 88% | 87.7 | 87% | 86.8 |
+| judge | 90% | 89.6 | 86% | 85.8 | 87% | 86.8 | 88% | 87.7 |
+| minicheck | 74% | 73.5 | 72% | 71.3 | 71% | 70.6 | 72% | 71.5 |
+| lettuce | 75% | 74.1 | 75% | 73.7 | 72% | 71.2 | 73% | 72.1 |
+| lexical | 74% | 73.4 | 75% | 75.0 | 76% | 76.2 | 75% | 75.3 |
 
 ## Quotes
 

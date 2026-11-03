@@ -24,6 +24,10 @@ USER_AGENT = os.environ.get("UPHELD_USER_AGENT", "upheld/0.1 (+https://github.co
 MAX_BYTES = 5_000_000
 TIMEOUT = 15.0
 GONE = {404, 410}
+# Less readable text than this means a stand-in was served instead of the page: in the fresh
+# benchmark every such page was a cookie wall, a VPN or bot check, or a JavaScript app whose
+# text only loads in a browser. The shortest real page there had 647 characters.
+MIN_TEXT_CHARS = 300
 
 
 @dataclass
@@ -120,8 +124,11 @@ async def fetch_source(client: httpx.AsyncClient, source: Source, allow_private:
         )
     html = body.decode(response.encoding or "utf-8", errors="replace")
     text = await asyncio.to_thread(extract_text, html, str(response.url))
-    if not text.strip():
+    if not (chars := len(text.strip())):
         return FetchedSource(source, LinkStatus.UNREACHABLE, http_status=response.status_code, note="page had no extractable text")
+    if chars < MIN_TEXT_CHARS:
+        note = f"page had only {chars} characters of text: likely a cookie wall, bot check or page that needs JavaScript"
+        return FetchedSource(source, LinkStatus.UNREACHABLE, http_status=response.status_code, note=note)
     return FetchedSource(source, LinkStatus.LIVE, text, http_status=response.status_code)
 
 

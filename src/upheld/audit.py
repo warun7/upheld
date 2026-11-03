@@ -22,7 +22,9 @@ from upheld.sources import FetchedSource, fetch_all
 from upheld.verify import SupportResult, Verifier
 
 _UNREADABLE = {LinkStatus.LINK_ROT, LinkStatus.UNREACHABLE}
-MAX_PASSAGES = 8  # ~1,000 words of evidence per verifier call, well inside LettuceDetect's 4,096 tokens
+# ~1,000 words of evidence per verifier call, well inside LettuceDetect's 4,096 tokens. A claim that
+# retrieves more on its own (the judge ensemble takes 10) is checked by itself.
+MAX_PASSAGES = 8
 
 
 async def run_audit(
@@ -32,8 +34,9 @@ async def run_audit(
     embedder: Embedder | None = None,
     fetch: bool = True,
     allow_private: bool = False,
-    top_k: int = 3,
+    top_k: int | None = None,
 ) -> AuditReport:
+    """top_k (evidence passages per claim) defaults to what the verifier was tuned with."""
     body, listed = extract_reference_list(req.answer)
     parsed, linked = split_claims(body)
     claims = [c for c in parsed if c.cited or is_claim(c.text)]
@@ -49,7 +52,7 @@ async def run_audit(
     else:
         loaded = {s.id: _without_fetch(s) for s in to_load}
 
-    results = await asyncio.to_thread(_check_claims, claims, loaded, verifier, embedder, req.question, top_k)
+    results = await asyncio.to_thread(_check_claims, claims, loaded, verifier, embedder, req.question, top_k or verifier.top_k)
     reports = [_source_report(loaded[i]) if i in loaded else _missing_report(i) for i in cited_ids]
     return AuditReport(
         verifier=verifier.name, retrieval=retrieval_name(embedder), summary=_summarize(results), claims=results, sources=reports

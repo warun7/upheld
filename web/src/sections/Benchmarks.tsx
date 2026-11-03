@@ -523,7 +523,7 @@ const FRESH_NOTES = [
   },
   {
     title: "A first filter, not the final word",
-    body: "upheld misses few bad citations, but 3 in 10 flags are false alarms, often from retrieval picking the wrong passage. The opt-in LLM judge cuts false alarms on good citations from 38% to 29%.",
+    body: "upheld misses few bad citations, but 3 in 10 flags are false alarms. Block pages are now reported unreadable, and the opt-in LLM judge, reading 10 passages per claim, halves false alarms on good citations: 36% to 18%.",
   },
   {
     title: "Labeled by Claude, checked by GPT and Gemini",

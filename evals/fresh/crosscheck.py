@@ -38,7 +38,7 @@ from pathlib import Path
 
 import httpx
 
-from upheld.sources import check_url_allowed, extract_text
+from upheld.sources import MIN_TEXT_CHARS, check_url_allowed, extract_text
 from verifiers import load_scores, metrics
 
 HERE = Path(__file__).parent
@@ -47,8 +47,6 @@ PAGES = HERE / "pages"
 RAW = HERE / "raw"
 REPORT = HERE / "crosscheck.md"
 SAMPLE_SIZE = 150
-# Shorter text is a block page (cookie wall, "connect to VPN", a JavaScript app's shell), not the document.
-MIN_PAGE_CHARS = 300
 # Pages are cut here, and a batch holds at most this many items and this much page text.
 MAX_PAGE_CHARS = 160_000
 BATCH_ITEMS = 8
@@ -173,7 +171,7 @@ async def _fetch_text(client: httpx.AsyncClient, url: str) -> str:
 
 async def _fetch_page(client: httpx.AsyncClient, url: str, claude_copies: list[str]) -> dict:
     for read_from in [url, f"https://web.archive.org/web/2026/{url}", *claude_copies]:
-        if len(text := (await _fetch_text(client, read_from)).strip()) >= MIN_PAGE_CHARS:
+        if len(text := (await _fetch_text(client, read_from)).strip()) >= MIN_TEXT_CHARS:
             return {"url": url, "read_from": read_from, "chars": len(text), "text": text[:MAX_PAGE_CHARS]}
     return {"url": url, "read_from": None, "chars": 0, "text": ""}
 
@@ -434,7 +432,8 @@ def report() -> None:
         "",
         "## upheld against each labeler",
         "",
-        "Agreement and macro-F1 of each verifier on the sampled citations with passages, at its AttributionBench dev threshold. "
+        "Agreement and macro-F1 of each verifier on the sampled citations whose page upheld can read, as shipped (its passages per claim "
+        "and its AttributionBench dev threshold; see verifiers.py). "
         f"Majority is the binary verdict at least two labelers share ({len(majority)} citations).",
         "",
         "| Verifier | " + " | ".join(f"{n} agree | {n} macro-F1" for n in [*names, "majority"]) + " |",
