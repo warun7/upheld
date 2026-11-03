@@ -14,7 +14,7 @@ export const VERDICTS: Record<Verdict, { label: string; short: string; icon: Ico
     label: "Supported",
     short: "The cited source backs the claim.",
     icon: CheckCircleIcon,
-    tone: "text-accent",
+    tone: "text-accent-ink",
   },
   unsupported: {
     label: "Unsupported",
@@ -59,7 +59,7 @@ export const VERDICT_ORDER: Verdict[] = [
 
 export const LINK_STATUS: Record<LinkStatus, { label: string; tone: string }> = {
   provided: { label: "Text provided", tone: "text-ink-2" },
-  live: { label: "Live", tone: "text-accent" },
+  live: { label: "Live", tone: "text-accent-ink" },
   link_rot: { label: "Dead, archived copy exists", tone: "text-warn" },
   likely_fabricated: { label: "Dead and never archived", tone: "text-bad" },
   unreachable: { label: "Couldn't read", tone: "text-ink-2" },

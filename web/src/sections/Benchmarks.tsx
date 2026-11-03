@@ -124,7 +124,7 @@ function DotPlot({ metric }: { metric: Metric }) {
                     )}
                   </AnimatePresence>
                 </div>
-                <p className={`text-right font-mono text-sm ${s.isDefault ? "font-semibold text-accent" : "text-ink-2"}`}>{v.toFixed(1)}</p>
+                <p className={`text-right font-mono text-sm ${s.isDefault ? "font-semibold text-accent-ink" : "text-ink-2"}`}>{v.toFixed(1)}</p>
               </motion.li>
             );
           })}
@@ -253,7 +253,7 @@ export function Benchmarks() {
           <div className="mt-auto grid grid-cols-2 gap-8 pt-12">
             <div>
               <p className="text-sm text-ink-2">In-distribution</p>
-              <p className="display mt-2 text-5xl leading-none text-accent md:text-6xl">
+              <p className="display mt-2 text-5xl leading-none text-accent-ink md:text-6xl">
                 <Ticker value="74.4" />
               </p>
               <p className="mt-2 text-xs text-ink-3">macro-F1. With the judge: 76.7. GPT-4 + CoT: 73.3</p>
@@ -545,7 +545,7 @@ export function FreshBenchmark() {
           <div className="mt-auto grid grid-cols-2 gap-8 pt-12">
             <div>
               <p className="text-sm text-ink-2">Bad citations flagged</p>
-              <p className="display mt-2 text-5xl leading-none text-accent md:text-6xl">
+              <p className="display mt-2 text-5xl leading-none text-accent-ink md:text-6xl">
                 <Ticker value={`${FRESH_UPHELD.recall}%`} />
               </p>
               <p className="mt-2 text-xs text-ink-3">Partial or unsupported, of the {FRESH_UPHELD.read} upheld could read</p>

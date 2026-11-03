@@ -6,7 +6,9 @@
   Theme tokens. Light paper is the default; dark applies only when the visitor picks it
   (data-theme on <html>, set before first paint). Text colors pass WCAG AA on --bg and
   --cell in their own mode; --ink-h1 is for display-size type only (3:1).
-  Colors read by the WebGL glyph renderer (--accent, --bad, --ink, --ink-3, --on-accent)
+  --accent is the same blue in both modes. On dark it's below AA for small text, so accent-colored
+  text and icons use --accent-ink, the same hue lightened, and --accent stays for fills.
+  Colors read by the WebGL glyph renderer (--accent-ink, --bad, --ink, --ink-3, --on-accent)
   must stay hex.
 */
 :root {
@@ -20,6 +22,7 @@
   --ink-3: #6f7077;
   --ink-h1: #86878d;
   --accent: #2b3bff;
+  --accent-ink: #2b3bff;
   --on-accent: #ffffff;
   --bad: #c8361a;
   --warn: #a35a00;
@@ -42,11 +45,12 @@
   --ink-2: #a3a4ab;
   --ink-3: #86878f;
   --ink-h1: #6b6c73;
-  --accent: #8c95ff;
-  --on-accent: #0b0b0e;
+  --accent: #2b3bff;
+  --accent-ink: #5470ff;
+  --on-accent: #ffffff;
   --bad: #ff7a5c;
   --warn: #f2b045;
-  --hl-ok: rgb(140 149 255 / 0.18);
+  --hl-ok: rgb(43 59 255 / 0.3);
   --hl-bad: rgb(255 122 92 / 0.16);
   --hl-warn: rgb(242 176 69 / 0.16);
   --partial: #a8503c;
@@ -67,6 +71,7 @@
   --color-ink-3: var(--ink-3);
   --color-ink-h1: var(--ink-h1);
   --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
   --color-on-accent: var(--on-accent);
   --color-bad: var(--bad);
   --color-warn: var(--warn);
@@ -97,7 +102,7 @@
     color: var(--on-accent);
   }
   :focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--accent-ink);
     outline-offset: 2px;
   }
 }
@@ -303,7 +308,7 @@
     transform: translateY(-100%);
   }
 
-  /* Logo: the columns push the beam up on hover. */
+  /* Logo: the beam rests on the h, l and d; on hover the columns push it up. */
   /* Units are the wordmark's font units: 60 is about 1.3px at nav size. */
   .logo .logo-beam {
     fill: var(--accent);
@@ -447,7 +452,7 @@
 @keyframes lit-step {
   0%,
   22% {
-    color: var(--accent);
+    color: var(--accent-ink);
   }
   30%,
   100% {
