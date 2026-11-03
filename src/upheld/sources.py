@@ -81,12 +81,23 @@ def extract_pdf_text(data: bytes) -> str:
         pages = [page.extract_text() or "" for page in PdfReader(BytesIO(data)).pages]
     except Exception:  # pypdf raises many types on damaged files
         return ""
-    return "\n\n".join(text for text in map(unwrap, pages) if text)
+    compounds = {word.lower() for page in pages for word in _COMPOUND.findall(page)}
+    return "\n\n".join(text for text in (unwrap(page, compounds) for page in pages) if text)
 
 
-def unwrap(text: str) -> str:
-    """Undo a PDF's line wrapping: join wrapped lines, and words broken across lines at a hyphen."""
-    text = re.sub(r"(?<=[A-Za-z])-[ \t]*\n\s*(?=[a-z])", "", text)  # con-\ntinues -> continues
+_COMPOUND = re.compile(r"(?<![A-Za-z])(?=([A-Za-z]+-[a-z]+))")  # each hyphenated pair, overlapping: non-small-cell gives non-small, small-cell
+_BROKEN_WORD = re.compile(r"([A-Za-z]+)-[ \t]*\n\s*([a-z]+)")
+
+
+def unwrap(text: str, compounds: set[str] | frozenset[str] = frozenset()) -> str:
+    """Undo a PDF's line wrapping: join wrapped lines, and words broken across lines at a hyphen.
+
+    A broken word is joined up (cardio-/vascular -> cardiovascular) unless the
+    document writes it with a hyphen elsewhere (low-/dose -> low-dose); compounds
+    holds those hyphenated words, lowercased.
+    """
+    rejoin = lambda m: f"{m[1]}-{m[2]}" if f"{m[1]}-{m[2]}".lower() in compounds else m[1] + m[2]  # noqa: E731
+    text = _BROKEN_WORD.sub(rejoin, text)
     text = re.sub(r"(?<=\w)-[ \t]*\n\s*", "-", text)  # COVID-\n19 -> COVID-19
     return " ".join(text.split())
 

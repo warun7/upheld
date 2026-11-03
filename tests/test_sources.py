@@ -24,8 +24,9 @@ ARTICLE_LINES = [
     "of major hemorrhage, the ASPREE investigators reported. The trial",
     "enrolled 19,114 people aged 70 or older in Australia and the United",
     "States, none of them with COVID-",
-    "19. Participants took 100 mg of aspirin or a placebo every day and",
-    "were followed for a median of 4.7 years.",
+    "19. Participants took 100 mg of low-",
+    "dose aspirin or a placebo every day and were followed for a median",
+    "of 4.7 years.",
 ]
 
 
@@ -79,6 +80,7 @@ def test_pdf_is_read_with_its_lines_joined(content_type):
     assert fetched.status == LinkStatus.LIVE
     assert "risk of cardiovascular disease in healthy older adults" in fetched.text
     assert "with COVID-19." in fetched.text
+    assert "100 mg of low-dose aspirin" in fetched.text  # the article hyphenates it on its first line
     assert "\n" not in fetched.text
 
 
