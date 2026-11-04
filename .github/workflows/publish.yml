@@ -25,6 +25,12 @@ jobs:
           fi
       - run: uv sync --locked
       - run: uv run pytest -q
+      - name: Test at the lowest versions pyproject.toml allows
+        run: |
+          uv venv --python 3.12 "$RUNNER_TEMP/lowest"
+          uv pip install --python "$RUNNER_TEMP/lowest" --resolution lowest-direct ".[api]"
+          uv pip install --python "$RUNNER_TEMP/lowest" pytest
+          "$RUNNER_TEMP/lowest/bin/python" -m pytest -q
       - run: uv build
       - name: Audit an example with the built wheel, outside the project
         run: |

@@ -17,7 +17,7 @@ WORKDIR /app
 RUN uv pip install torch==2.15.0 --index-url https://download.pytorch.org/whl/cpu
 COPY pyproject.toml README.md LICENSE ./
 COPY src ./src
-RUN uv pip install ".[minicheck,lettuce,dense]"
+RUN uv pip install ".[models,api]"
 
 # Bake the ~4 GB of models into the image so a cold start doesn't download them.
 RUN python -c "from upheld.evidence import make_embedder; from upheld.verify import make_verifier; make_verifier('ensemble'); make_embedder('auto')" \

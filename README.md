@@ -12,7 +12,7 @@ One engine, several ways in. They all call the same `run_audit()`.
 |---|---|---|
 | **Python library** (`pip install upheld`) | Developers: `upheld.audit()` checks an answer and its sources, or an OpenAI, Anthropic, Perplexity or Gemini response as the API returned it, in an eval suite, a test or a pipeline. Runs on a laptop (CPU, Apple or NVIDIA GPU), no API key, nothing leaves your machine except fetching the cited pages. | Working |
 | **CLI** (`upheld audit`) | Spot-checking an answer copied from an AI search tool, or a provider's response saved as JSON. | Working |
-| **HTTP API** (`upheld serve`) | RAG builders: audit your pipeline's outputs in CI or as a guardrail before showing an answer, from any language. `POST /audit/{provider}` takes a provider's response as it is. Also the reward server for phase 2. | Working |
+| **HTTP API** (`pip install "upheld[api]"`, then `upheld serve`) | RAG builders: audit your pipeline's outputs in CI or as a guardrail before showing an answer, from any language. `POST /audit/{provider}` takes a provider's response as it is. Also the reward server for phase 2. | Working |
 | **Website + playground** (`web/`) | Anyone: paste an answer from Perplexity/ChatGPT/Gemini with its sources and see each claim highlighted. `upheld serve` hosts it next to the API. See [web/README.md](https://github.com/warun7/upheld/blob/main/web/README.md). | Site live at [upheld.varunsg.com](https://upheld.varunsg.com); playground not yet deployed |
 | **Browser extension** | Overlays verdicts directly on AI search answers. Calls the hosted API. Most visible, but brittle (each site's page structure changes). | Later |
 
@@ -54,7 +54,9 @@ unsupported It was designed by Frank Lloyd Wright.
 
 `upheld.audit` takes an answer with `[1]`-style markers or inline links, and its sources in order: URLs to fetch, or the text itself. It returns an `AuditReport` with a verdict, a support score and the evidence for every claim. To audit a provider's response as it comes back from the API, see [Use it in your code](#use-it-in-your-code).
 
-The first run downloads about 4 GB of models from Hugging Face: the two that the default ensemble verifier combines (`lytang/MiniCheck-Flan-T5-Large`, `KRLabsOrg/lettucedect-base-modernbert-en-v1`) and the retrieval embedder (`BAAI/bge-small-en-v1.5`). `verifier="minicheck"` uses one model. Plain `pip install upheld` leaves out torch and the models, and runs only `verifier="lexical", retrieval="bm25"`, which is much weaker. The most accurate verifier, `ensemble+judge`, also needs `pip install "upheld[models,judge]"`, which builds llama.cpp from source, and downloads the 8.7 GB Granite Guardian GGUF on first use.
+The first run downloads about 4 GB of models from Hugging Face: the two that the default ensemble verifier combines (`lytang/MiniCheck-Flan-T5-Large`, `KRLabsOrg/lettucedect-base-modernbert-en-v1`) and the retrieval embedder (`BAAI/bge-small-en-v1.5`). `verifier="minicheck"` uses one model. Plain `pip install upheld` leaves out torch and the models, and runs only `verifier="lexical", retrieval="bm25"`, which is much weaker. The most accurate verifier, `ensemble+judge`, also needs `pip install "upheld[models,judge]"`, which builds llama.cpp from source, and downloads the 8.7 GB Granite Guardian GGUF on first use. `upheld serve` needs the `api` extra (FastAPI and uvicorn): `pip install "upheld[models,api]"`.
+
+The minimum versions are as old as upheld works with (pydantic 2.0, httpx 0.21; torch 2.6 and transformers 4.48 for the models), so it installs into an existing project without forcing upgrades.
 
 The same from the command line:
 
@@ -62,7 +64,7 @@ The same from the command line:
 upheld audit answer.md                       # markdown answer with a reference list; fetches the URLs
 upheld audit response.json --from openai     # a provider's API response, saved as JSON
 upheld audit answer.md --json                # full report
-upheld serve                                 # POST /audit on http://127.0.0.1:8000
+upheld serve                                 # POST /audit on http://127.0.0.1:8000 (needs upheld[api])
 ```
 
 ### From a clone
@@ -159,6 +161,7 @@ report = await auditor.audit_async(response)  # in an event loop, such as a web 
 
 ```bash
 upheld audit response.json --from openai     # or anthropic, perplexity, gemini; auto, the default, tells them apart
+pip install "upheld[api]"                    # once, for upheld serve
 upheld serve &
 curl -s localhost:8000/audit/auto -H 'content-type: application/json' -d @response.json
 ```

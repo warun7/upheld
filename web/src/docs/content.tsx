@@ -75,8 +75,13 @@ const install: DocPage = {
           ["pip install upheld", <>The core only: the <C>lexical</C> verifier and BM25 retrieval. Good for trying the pipeline.</>, "none"],
           ['pip install "upheld[models]"', <>The default <C>ensemble</C> verifier and hybrid retrieval.</>, "about 4 GB"],
           ['pip install "upheld[models,judge]"', <>Adds the Granite Guardian judge for <C>ensemble+judge</C> and <C>judge</C>. Builds llama.cpp from source.</>, "8.7 GB more"],
+          ['pip install "upheld[models,api]"', <>Adds FastAPI and uvicorn for <C>upheld serve</C>, the HTTP API and the website.</>, "none"],
         ]}
       />
+      <p>
+        The minimum versions are as old as upheld works with (pydantic 2.0, httpx 0.21; torch 2.6 and transformers 4.48 for the models), so it installs into an
+        existing project without forcing upgrades.
+      </p>
       <p>
         With uv, <C>uv add "upheld[models]"</C>. To run the repo's examples, evals and tests, clone it instead: <C>git clone {GITHUB_URL} && cd upheld && uv sync --extra models</C>,
         or <C>--all-extras</C> for the judge.
@@ -305,9 +310,10 @@ const http: DocPage = {
   body: (
     <>
       <p>
-        <C>upheld serve</C> runs a small API that loads the models once and keeps them warm. Call it from any language.
+        <C>upheld serve</C> runs a small API that loads the models once and keeps them warm. Call it from any language. It needs the <C>api</C> extra.
       </p>
-      <Code>{`upheld serve --port 8000
+      <Code>{`pip install "upheld[models,api]"
+upheld serve --port 8000
 
 curl -s localhost:8000/health
 
@@ -607,7 +613,8 @@ const cli: DocPage = {
       <H3>upheld serve</H3>
       <p>
         Run the HTTP API, plus the website{HAS_PLAYGROUND ? " and playground" : ""} when <C>web/dist</C> is built. Takes <C>--host</C> (default{" "}
-        <C>127.0.0.1</C>), <C>--port</C> (default <C>8000</C>), <C>--verifier</C> and <C>--retrieval</C>.
+        <C>127.0.0.1</C>), <C>--port</C> (default <C>8000</C>), <C>--verifier</C> and <C>--retrieval</C>. Needs the <C>api</C> extra:{" "}
+        <C>pip install "upheld[api]"</C>.
       </p>
     </>
   ),

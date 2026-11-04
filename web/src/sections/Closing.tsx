@@ -88,7 +88,8 @@ report = upheld.audit(
 )
 for claim in report.claims:
     print(claim.verdict, claim.text)`,
-  HTTP: `upheld serve        # the API on :8000
+  HTTP: `pip install "upheld[models,api]"
+upheld serve        # the API on :8000
 
 curl -s localhost:8000/audit -H 'content-type: application/json' -d '{
   "answer": "The Eiffel Tower is 384 metres tall [1].",

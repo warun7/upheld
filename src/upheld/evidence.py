@@ -56,7 +56,7 @@ class SentenceEmbedder:
         try:
             from sentence_transformers import SentenceTransformer
         except ImportError as e:
-            raise ImportError("hybrid retrieval needs the optional extra: uv sync --extra dense") from e
+            raise ImportError('hybrid retrieval needs the optional extra: pip install "upheld[dense]"') from e
         self.model = SentenceTransformer(model_name)
         self.name = model_name.rsplit("/", 1)[-1]
         self.query_prefix = self.BGE_QUERY_PREFIX if "bge" in model_name.lower() else ""

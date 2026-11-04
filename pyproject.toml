@@ -24,17 +24,15 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "fastapi>=0.162.0",
-    "httpx>=0.28.1",
+    "httpx>=0.21",
     "numpy>=1.26",
-    "pydantic>=2.14.2",
-    "pypdf>=6.21.4",
+    "pydantic>=2.0.2",
+    "pypdf>=3.1",
     "rank-bm25>=0.2.2",
-    "rich>=15.0.0",
-    "trafilatura>=2.3.1",
-    "typer>=0.27.3",
-    "uvicorn>=0.54.0",
-    "wordfreq>=3.1.1",
+    "rich>=10.11",
+    "trafilatura>=1.0",
+    "typer>=0.15.4",
+    "wordfreq>=3.1",
 ]
 
 [project.urls]
@@ -48,18 +46,23 @@ upheld = "upheld.cli:app"
 
 [project.optional-dependencies]
 lettuce = [
-    "lettucedetect>=0.2.3",
+    "lettucedetect>=0.1.7",
 ]
 dense = [
-    "sentence-transformers>=6.2.0",
+    "sentence-transformers>=2.3",
 ]
 minicheck = [
-    "torch>=2.15.0",
-    "transformers>=5.22.1",
+    "torch>=2.2",
+    "transformers>=4.34",
 ]
 judge = [
-    "llama-cpp-python>=0.3.36",
-    "transformers>=5.22.1",
+    "llama-cpp-python>=0.3.2",
+    "transformers>=4.47",
+]
+# upheld serve: the HTTP API and the website.
+api = [
+    "fastapi>=0.100",
+    "uvicorn>=0.20",
 ]
 # Everything the default ensemble and hybrid retrieval need; the judge builds llama.cpp, so it stays separate.
 models = [
@@ -74,4 +77,5 @@ build-backend = "uv_build"
 dev = [
     "pytest>=9.2.0",
     "scikit-learn>=1.9.1",
+    "upheld[api]",
 ]

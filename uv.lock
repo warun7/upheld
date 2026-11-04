@@ -2187,7 +2187,6 @@ name = "upheld"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "fastapi" },
     { name = "httpx" },
     { name = "numpy" },
     { name = "pydantic" },
@@ -2196,11 +2195,14 @@ dependencies = [
     { name = "rich" },
     { name = "trafilatura" },
     { name = "typer" },
-    { name = "uvicorn" },
     { name = "wordfreq" },
 ]
 
 [package.optional-dependencies]
+api = [
+    { name = "fastapi" },
+    { name = "uvicorn" },
+]
 dense = [
     { name = "sentence-transformers" },
 ]
@@ -2226,35 +2228,37 @@ models = [
 dev = [
     { name = "pytest" },
     { name = "scikit-learn" },
+    { name = "upheld", extra = ["api"] },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "fastapi", specifier = ">=0.162.0" },
-    { name = "httpx", specifier = ">=0.28.1" },
-    { name = "lettucedetect", marker = "extra == 'lettuce'", specifier = ">=0.2.3" },
-    { name = "llama-cpp-python", marker = "extra == 'judge'", specifier = ">=0.3.36" },
+    { name = "fastapi", marker = "extra == 'api'", specifier = ">=0.100" },
+    { name = "httpx", specifier = ">=0.21" },
+    { name = "lettucedetect", marker = "extra == 'lettuce'", specifier = ">=0.1.7" },
+    { name = "llama-cpp-python", marker = "extra == 'judge'", specifier = ">=0.3.2" },
     { name = "numpy", specifier = ">=1.26" },
-    { name = "pydantic", specifier = ">=2.14.2" },
-    { name = "pypdf", specifier = ">=6.21.4" },
+    { name = "pydantic", specifier = ">=2.0.2" },
+    { name = "pypdf", specifier = ">=3.1" },
     { name = "rank-bm25", specifier = ">=0.2.2" },
-    { name = "rich", specifier = ">=15.0.0" },
-    { name = "sentence-transformers", marker = "extra == 'dense'", specifier = ">=6.2.0" },
-    { name = "torch", marker = "extra == 'minicheck'", specifier = ">=2.15.0" },
-    { name = "trafilatura", specifier = ">=2.3.1" },
-    { name = "transformers", marker = "extra == 'judge'", specifier = ">=5.22.1" },
-    { name = "transformers", marker = "extra == 'minicheck'", specifier = ">=5.22.1" },
-    { name = "typer", specifier = ">=0.27.3" },
+    { name = "rich", specifier = ">=10.11" },
+    { name = "sentence-transformers", marker = "extra == 'dense'", specifier = ">=2.3" },
+    { name = "torch", marker = "extra == 'minicheck'", specifier = ">=2.2" },
+    { name = "trafilatura", specifier = ">=1.0" },
+    { name = "transformers", marker = "extra == 'judge'", specifier = ">=4.47" },
+    { name = "transformers", marker = "extra == 'minicheck'", specifier = ">=4.34" },
+    { name = "typer", specifier = ">=0.15.4" },
     { name = "upheld", extras = ["minicheck", "lettuce", "dense"], marker = "extra == 'models'" },
-    { name = "uvicorn", specifier = ">=0.54.0" },
-    { name = "wordfreq", specifier = ">=3.1.1" },
+    { name = "uvicorn", marker = "extra == 'api'", specifier = ">=0.20" },
+    { name = "wordfreq", specifier = ">=3.1" },
 ]
-provides-extras = ["lettuce", "dense", "minicheck", "judge", "models"]
+provides-extras = ["lettuce", "dense", "minicheck", "judge", "api", "models"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "pytest", specifier = ">=9.2.0" },
     { name = "scikit-learn", specifier = ">=1.9.1" },
+    { name = "upheld", extras = ["api"] },
 ]
 
 [[package]]

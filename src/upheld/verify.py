@@ -93,7 +93,7 @@ class LettuceVerifier:
         try:
             from lettucedetect.models.inference import HallucinationDetector
         except ImportError as e:
-            raise ImportError("LettuceVerifier needs the optional extra: uv sync --extra lettuce") from e
+            raise ImportError('LettuceVerifier needs the optional extra: pip install "upheld[lettuce]"') from e
         self.detector = HallucinationDetector(method="transformer", model_path=model_path, device=device)
         self.threshold = threshold
         self.name = f"lettuce:{model_path.rsplit('/', 1)[-1]}@{threshold}"
@@ -151,7 +151,7 @@ class MiniCheckVerifier:
             import torch
             from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
         except ImportError as e:
-            raise ImportError("MiniCheckVerifier needs the optional extra: uv sync --extra minicheck") from e
+            raise ImportError('MiniCheckVerifier needs the optional extra: pip install "upheld[minicheck]"') from e
         if device is None:
             device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
         self.torch = torch
@@ -213,7 +213,7 @@ class GraniteJudgeVerifier:
             from huggingface_hub import hf_hub_download
             from transformers import AutoTokenizer
         except ImportError as e:
-            raise ImportError("GraniteJudgeVerifier needs the optional extra: uv sync --extra judge") from e
+            raise ImportError('GraniteJudgeVerifier needs the optional extra: pip install "upheld[judge]"') from e
         self.llama_cpp = llama_cpp
         self.tokenizer = AutoTokenizer.from_pretrained(self.TOKENIZER)
         path = model_path or hf_hub_download(self.GGUF_REPO, self.GGUF_FILE)

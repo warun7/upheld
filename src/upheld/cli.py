@@ -122,7 +122,12 @@ def serve(
     """Run the HTTP API, plus the website and playground when web/dist is built."""
     import os
 
-    import uvicorn
+    try:
+        import fastapi  # noqa: F401
+        import uvicorn
+    except ImportError as e:
+        console.print(f'[red]error:[/] upheld serve needs the api extra ({e.name} is missing): pip install "upheld\\[api]"')
+        raise typer.Exit(1) from e
 
     os.environ["UPHELD_VERIFIER"] = verifier
     os.environ["UPHELD_RETRIEVAL"] = retrieval
