@@ -95,6 +95,11 @@ curl -s localhost:8000/audit -H 'content-type: application/json' -d '{
   "answer": "The Eiffel Tower is 384 metres tall [1].",
   "sources": [{"id": "1", "url": "https://en.wikipedia.org/wiki/Eiffel_Tower"}]
 }'`,
+  MCP: `# once, in a terminal: installs torch and the rest
+uvx --from "upheld[models,mcp]" upheld mcp --help
+
+# then add it to Claude Code (Cursor and Codex: see the docs)
+claude mcp add --scope user upheld -- uvx --from "upheld[models,mcp]" upheld mcp`,
 };
 
 type Tab = keyof typeof SNIPPETS;
@@ -117,9 +122,10 @@ export function Install() {
     <Section id="install">
       <div className="ruled grid-cols-1 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
         <div className="px-5 py-16 sm:px-8 md:py-20 lg:px-12">
-          <h2 className="display text-4xl leading-[1.02] md:text-[3.25rem]">One engine, three ways in</h2>
+          <h2 className="display text-4xl leading-[1.02] md:text-[3.25rem]">One engine, four ways in</h2>
           <p className="mt-5 max-w-[44ch] text-lg leading-relaxed text-ink-2">
-            A CLI for spot checks, a Python library for your eval suite, and an HTTP API to gate a RAG pipeline before an answer ships.
+            A CLI for spot checks, a Python library for your eval suite, an HTTP API to gate a RAG pipeline, and an MCP server so your agent
+            checks its own citations.
           </p>
           <ul className="mt-10 space-y-4 text-ink-2">
             {[
@@ -143,7 +149,7 @@ export function Install() {
                 key={t}
                 type="button"
                 onClick={() => setTab(t)}
-                className={`relative h-12 border-r border-line px-5 text-sm transition-colors ${tab === t ? "text-ink" : "text-ink-3 hover:text-ink"}`}
+                className={`relative h-12 border-r border-line px-3.5 text-sm transition-colors sm:px-5 ${tab === t ? "text-ink" : "text-ink-3 hover:text-ink"}`}
               >
                 {tab === t && <motion.span layoutId="code-tab" className="absolute inset-x-0 -bottom-px h-0.5 bg-accent" transition={{ type: "spring", stiffness: 460, damping: 36 }} />}
                 {t}

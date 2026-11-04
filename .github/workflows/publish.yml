@@ -31,6 +31,13 @@ jobs:
           uv pip install --python "$RUNNER_TEMP/lowest" --resolution lowest-direct ".[api]"
           uv pip install --python "$RUNNER_TEMP/lowest" pytest
           "$RUNNER_TEMP/lowest/bin/python" -m pytest -q
+      # Separately: mcp needs pydantic 2.12, which the lowest fastapi doesn't work with.
+      - name: Test the MCP server at the lowest versions
+        run: |
+          uv venv --python 3.12 "$RUNNER_TEMP/lowest-mcp"
+          uv pip install --python "$RUNNER_TEMP/lowest-mcp" --resolution lowest-direct ".[mcp]"
+          uv pip install --python "$RUNNER_TEMP/lowest-mcp" pytest
+          "$RUNNER_TEMP/lowest-mcp/bin/python" -m pytest -q --ignore tests/test_api.py
       - run: uv build
       - name: Audit an example with the built wheel, outside the project
         run: |

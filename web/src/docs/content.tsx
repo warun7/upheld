@@ -38,7 +38,7 @@ const overview: DocPage = {
         Each claim comes back with a verdict, a support score between 0 and 1, the evidence it was judged against and, when it fails, the words the source doesn't
         back. Every report names its verifier and threshold, because the numbers depend on them.
       </p>
-      <p>There are three ways to run it, all on the same engine:</p>
+      <p>There are four ways to run it, all on the same engine:</p>
       <Table
         mono={false}
         head={["Surface", "Use it for"]}
@@ -46,6 +46,7 @@ const overview: DocPage = {
           ["Python library", <>Checking answers in an eval suite, a test or a pipeline: an answer with its sources, or an OpenAI, Anthropic, Perplexity or Gemini response as the API returned it.</>],
           ["Command line", <>Spot-checking an answer you copied from ChatGPT, Perplexity, Gemini or your own tool, or a provider's response saved as JSON.</>],
           ["HTTP API", <>Gating answers before they reach a user, from any language. You run the server.</>],
+          ["MCP server", <>Letting Claude Code, Cursor, Codex or another agent check the citations in its own answer before it shows you.</>],
         ]}
       />
       <Note>
@@ -76,6 +77,7 @@ const install: DocPage = {
           ['pip install "upheld[models]"', <>The default <C>ensemble</C> verifier and hybrid retrieval.</>, "about 4 GB"],
           ['pip install "upheld[models,judge]"', <>Adds the Granite Guardian judge for <C>ensemble+judge</C> and <C>judge</C>. Builds llama.cpp from source.</>, "8.7 GB more"],
           ['pip install "upheld[models,api]"', <>Adds FastAPI and uvicorn for <C>upheld serve</C>, the HTTP API and the website.</>, "none"],
+          ['pip install "upheld[models,mcp]"', <>Adds the MCP SDK for <C>upheld mcp</C>, the server for AI agents (see <A href="#mcp">Check answers from an AI agent</A>).</>, "none"],
         ]}
       />
       <p>
@@ -341,6 +343,127 @@ curl -s localhost:8000/audit -H 'content-type: application/json' -d '{
         The API fetches whatever URLs a request cites. It refuses private, loopback and cloud-metadata addresses, but it has no authentication or rate limit. Keep it
         on a private network, or put it behind something that adds both, before exposing it.
       </Note>
+    </>
+  ),
+};
+
+const mcp: DocPage = {
+  id: "mcp",
+  title: "Check answers from an AI agent",
+  body: (
+    <>
+      <p>
+        <C>upheld mcp</C> is an <A href="https://modelcontextprotocol.io">MCP</A> server, so Claude Code, Cursor, Codex and other agents can check the citations in an
+        answer they've drafted before they show it to you. It runs on your machine over stdio.
+      </p>
+      <p>
+        With <A href="https://docs.astral.sh/uv/">uv</A>, run it once in a terminal first. The first run installs torch and the rest, which takes a few minutes, and
+        clients give up on a server that slow to start.
+      </p>
+      <Code>{`uvx --from "upheld[models,mcp]" upheld mcp --help`}</Code>
+      <p>Then add it to your client.</p>
+      <H3>Claude Code</H3>
+      <Code>{`claude mcp add --scope user upheld -- uvx --from "upheld[models,mcp]" upheld mcp`}</Code>
+      <p>
+        <C>--scope user</C> makes it available in all your projects. Leave it out for the current project only, or use <C>--scope project</C> to share it with the
+        project through <C>.mcp.json</C>. <C>claude mcp list</C> should show it as connected.
+      </p>
+      <H3>Cursor</H3>
+      <p>
+        Add it to <C>~/.cursor/mcp.json</C>, or to <C>.cursor/mcp.json</C> in a project:
+      </p>
+      <Code label="json">{`{
+  "mcpServers": {
+    "upheld": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["--from", "upheld[models,mcp]", "upheld", "mcp"]
+    }
+  }
+}`}</Code>
+      <H3>Codex CLI</H3>
+      <p>
+        Add it to <C>~/.codex/config.toml</C>:
+      </p>
+      <Code label="toml">{`[mcp_servers.upheld]
+command = "uvx"
+args = ["--from", "upheld[models,mcp]", "upheld", "mcp"]
+startup_timeout_sec = 60
+tool_timeout_sec = 600`}</Code>
+      <p>
+        <C>codex mcp add upheld -- uvx --from "upheld[models,mcp]" upheld mcp</C> writes the first three lines. Add the timeouts by hand: Codex gives up on a tool
+        call after 60 seconds by default, and the first call waits for the models to load.
+      </p>
+      <H3>Any other client</H3>
+      <p>
+        A stdio server with the command <C>uvx</C> and the arguments <C>--from upheld[models,mcp] upheld mcp</C>. Clients configured with JSON mostly take the Cursor
+        entry above. Without uv, <C>pip install "upheld[models,mcp]"</C> and use the command <C>upheld</C> with the argument <C>mcp</C>.
+      </p>
+      <H3>The tools</H3>
+      <Table
+        head={["Tool", "Takes", "Returns"]}
+        rows={[
+          [
+            "audit_citations",
+            <>
+              An answer with <C>[1]</C>-style markers or inline links, and its sources in order: URLs, the sources' text, or <C>{"{id, url, title, text}"}</C> objects.
+              Or a provider's response, as for <C>upheld.audit</C>. Optionally the question.
+            </>,
+            <>
+              Counts of each verdict, and for each claim that isn't supported its verdict, the cited URL, the score, the closest passage and a note, such as "checked
+              against the Wayback Machine copy of 2026-10-02". <C>full_report: true</C> adds the whole <A href="#report">report</A>.
+            </>,
+          ],
+          ["check_claim", <>One statement, and one source's URL or text.</>, <>The verdict, score and closest passage, whether or not the source backs it.</>],
+        ]}
+      />
+      <p>For an answer that says the Eiffel Tower "was designed by Frank Lloyd Wright [1]", citing Wikipedia, the agent gets this (the passage is shortened here):</p>
+      <Code label="json">{`{
+  "summary": "1 of 2 cited claims supported",
+  "verdicts": {"supported": 1, "unsupported": 1},
+  "problems": [
+    {
+      "claim": "It was designed by Frank Lloyd Wright.",
+      "verdict": "unsupported",
+      "citations": [
+        {
+          "source": "1",
+          "url": "https://en.wikipedia.org/wiki/Eiffel_Tower",
+          "verdict": "unsupported",
+          "score": 0.209,
+          "closest_passage": "... It is named after the engineer Gustave Eiffel, whose company designed and built the tower from 1887 to 1889. ...",
+          "not_in_source": ["Frank Lloyd Wright"],
+          "flagged": ["It was designed by Frank Lloyd Wright"]
+        }
+      ]
+    }
+  ],
+  "verifier": "ensemble:minicheck+lexical+lettuce@0.5",
+  "retrieval": "hybrid:bm25+bge-small-en-v1.5"
+}`}</Code>
+      <H3>Options</H3>
+      <p>
+        The models load on the first call, in about half a minute once they're downloaded, and stay loaded. Later calls take a few seconds, mostly fetching pages.
+        Audits run one at a time, report progress while they run, and stop after 300 seconds. Each client session starts its own server, which holds about 4 GB once it
+        has loaded the models. Options go after <C>upheld mcp</C>, or in the server's environment:
+      </p>
+      <Table
+        head={["Option", "Variable", "Default"]}
+        rows={[
+          [
+            "--verifier",
+            <C>UPHELD_VERIFIER</C>,
+            <>
+              <C>ensemble</C>. <C>lexical</C> with <C>--retrieval bm25</C> needs no models (just <C>upheld[mcp]</C>) but is much weaker; <C>ensemble+judge</C> needs{" "}
+              <C>upheld[models,judge,mcp]</C>. See <A href="#verifiers">Pick a verifier</A>.
+            </>,
+          ],
+          ["--retrieval", <C>UPHELD_RETRIEVAL</C>, <C>auto</C>],
+          ["--threshold", <C>UPHELD_THRESHOLD</C>, <>the verifier's</>],
+          ["--timeout", <C>UPHELD_TIMEOUT</C>, <>300 seconds per call, model loading included</>],
+          ["--allow-private", <C>UPHELD_ALLOW_PRIVATE</C>, <>off, so localhost and private-network URLs are refused</>],
+        ]}
+      />
     </>
   ),
 };
@@ -616,6 +739,12 @@ const cli: DocPage = {
         <C>127.0.0.1</C>), <C>--port</C> (default <C>8000</C>), <C>--verifier</C> and <C>--retrieval</C>. Needs the <C>api</C> extra:{" "}
         <C>pip install "upheld[api]"</C>.
       </p>
+      <H3>upheld mcp</H3>
+      <p>
+        Run the MCP server over stdio, for AI agents. Takes <C>--verifier</C>, <C>--retrieval</C>, <C>--threshold</C>, <C>--timeout</C> (default 300 seconds) and{" "}
+        <C>--allow-private</C>, each also read from an <C>UPHELD_</C> environment variable. Needs the <C>mcp</C> extra. See{" "}
+        <A href="#mcp">Check answers from an AI agent</A>.
+      </p>
     </>
   ),
 };
@@ -671,6 +800,9 @@ const troubleshooting: DocPage = {
           ["A source was read from an archived copy.", <>upheld couldn't read the live page. The copy can be older than the page the answer cited: check <C>archived_at</C>, and paste the current text into the source's <C>text</C> field if the page has changed.</>],
           ["Wikipedia or another site returns 403.", <>Some sites reject generic user agents. Set <C>UPHELD_USER_AGENT</C> to a string with your project's URL.</>],
           ["A localhost URL is refused.", <>Private addresses are blocked by default. Pass <C>--allow-private</C> on the CLI.</>],
+          ["An MCP client can't start upheld.", <>Run <C>uvx --from "upheld[models,mcp]" upheld mcp --help</C> in a terminal once. The first run installs torch and takes longer than clients wait.</>],
+          ["Codex says the upheld tool timed out.", <>Set <C>tool_timeout_sec = 600</C> under <C>[mcp_servers.upheld]</C>. Codex's default is 60 seconds, and the first call loads the models.</>],
+          ["The agent's first audit stopped while the models loaded.", <>The first run downloads about 4 GB. The download carries on in the background, so ask the agent to try again in a minute or two.</>],
           ["It's too slow on CPU.", <>Try <C>--verifier minicheck</C>, or <C>--verifier lexical --retrieval bm25</C> to skip the models entirely.</>],
           ["A true claim is flagged.", <>Usually a one-step inference ("-14.9% change" vs "14.9% loss") or retrieval picking the wrong part of a long page. <C>--verifier ensemble+judge</C> handles both better: it reads 10 passages per claim and flags about half as many good citations.</>],
           ["A Gemini source says its redirect link no longer resolves.", <>Gemini's source links are redirects that expire. Audit Gemini responses soon after you get them.</>],
@@ -692,6 +824,6 @@ const troubleshooting: DocPage = {
 
 export const DOCS: { group: string; pages: DocPage[] }[] = [
   { group: "Getting started", pages: [overview, install, quickstart] },
-  { group: "Guides", pages: [providers, auditAnswer, python, http, verifiers, evaluate, selfHost] },
+  { group: "Guides", pages: [providers, auditAnswer, python, http, mcp, verifiers, evaluate, selfHost] },
   { group: "Reference", pages: [input, report, verdicts, cli, howItWorks, troubleshooting] },
 ];

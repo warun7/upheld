@@ -40,4 +40,6 @@ uv pip install --python /tmp/lowest --resolution lowest-direct ".[api]" && uv pi
 /tmp/lowest/bin/python -m pytest -q
 ```
 
+The `mcp` extra is checked on its own, with `".[mcp]"` and `pytest -q --ignore tests/test_api.py`: mcp needs pydantic 2.12, which the oldest fastapi the `api` extra allows doesn't work with. mcp 2.0 is the floor; 1.x has no `MCPServer`.
+
 For the models, install `".[models]"` the same way and audit `examples/glp1.json` with the default ensemble; its scores should match the ones in the README (0.42 on the 14.9% claim).

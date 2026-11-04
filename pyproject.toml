@@ -1,6 +1,6 @@
 [project]
 name = "upheld"
-version = "0.1.0"
+version = "0.2.0"
 description = "Check whether an AI answer's citations actually support its claims."
 readme = "README.md"
 license = "MIT"
@@ -64,6 +64,10 @@ api = [
     "fastapi>=0.100",
     "uvicorn>=0.20",
 ]
+# upheld mcp: the MCP server for AI agents.
+mcp = [
+    "mcp>=2.0.0",
+]
 # Everything the default ensemble and hybrid retrieval need; the judge builds llama.cpp, so it stays separate.
 models = [
     "upheld[minicheck,lettuce,dense]",
@@ -77,5 +81,5 @@ build-backend = "uv_build"
 dev = [
     "pytest>=9.2.0",
     "scikit-learn>=1.9.1",
-    "upheld[api]",
+    "upheld[api,mcp]",
 ]

@@ -1,5 +1,7 @@
 import asyncio
 import json
+import logging
+import os
 import sys
 from pathlib import Path
 from typing import Annotated
@@ -28,16 +30,14 @@ VERDICT_STYLE = {
     Verdict.UNCITED: "dim",
 }
 
-VerifierOpt = Annotated[
-    str,
-    typer.Option(
-        help="ensemble (MiniCheck, word overlap and LettuceDetect combined), ensemble+judge (adds the Granite Guardian 3.3 8B judge: most accurate, slower, needs the judge extra), minicheck (MiniCheck-Flan-T5), lettuce (LettuceDetect), lexical (word overlap, no model), or judge (the Granite judge alone)."
-    ),
-]
-ThresholdOpt = Annotated[float | None, typer.Option(help="Support score below this counts as unsupported.")]
-RetrievalOpt = Annotated[
-    str, typer.Option(help="How to find evidence in each source: hybrid (BM25 + embeddings), bm25, or auto (hybrid if installed).")
-]
+VERIFIER_HELP = "ensemble (MiniCheck, word overlap and LettuceDetect combined), ensemble+judge (adds the Granite Guardian 3.3 8B judge: most accurate, slower, needs the judge extra), minicheck (MiniCheck-Flan-T5), lettuce (LettuceDetect), lexical (word overlap, no model), or judge (the Granite judge alone)."
+THRESHOLD_HELP = "Support score below this counts as unsupported."
+RETRIEVAL_HELP = "How to find evidence in each source: hybrid (BM25 + embeddings), bm25, or auto (hybrid if installed)."
+ALLOW_PRIVATE_HELP = "Allow fetching localhost and private-network URLs."
+
+VerifierOpt = Annotated[str, typer.Option(help=VERIFIER_HELP)]
+ThresholdOpt = Annotated[float | None, typer.Option(help=THRESHOLD_HELP)]
+RetrievalOpt = Annotated[str, typer.Option(help=RETRIEVAL_HELP)]
 
 
 @app.command()
@@ -58,7 +58,7 @@ def audit(
     threshold: ThresholdOpt = None,
     retrieval: RetrievalOpt = "auto",
     fetch: Annotated[bool, typer.Option(help="Fetch cited URLs. Off means only inline source text is used.")] = True,
-    allow_private: Annotated[bool, typer.Option(help="Allow fetching localhost and private-network URLs.")] = False,
+    allow_private: Annotated[bool, typer.Option(help=ALLOW_PRIVATE_HELP)] = False,
     as_json: Annotated[bool, typer.Option("--json", help="Print the full report as JSON.")] = False,
 ) -> None:
     """Audit one answer."""
@@ -120,8 +120,6 @@ def serve(
     retrieval: RetrievalOpt = "auto",
 ) -> None:
     """Run the HTTP API, plus the website and playground when web/dist is built."""
-    import os
-
     try:
         import fastapi  # noqa: F401
         import uvicorn
@@ -132,6 +130,36 @@ def serve(
     os.environ["UPHELD_VERIFIER"] = verifier
     os.environ["UPHELD_RETRIEVAL"] = retrieval
     uvicorn.run("upheld.api:app", host=host, port=port)
+
+
+@app.command("mcp")
+def mcp_server(
+    verifier: Annotated[str, typer.Option(envvar="UPHELD_VERIFIER", help=VERIFIER_HELP)] = "ensemble",
+    threshold: Annotated[float | None, typer.Option(envvar="UPHELD_THRESHOLD", help=THRESHOLD_HELP)] = None,
+    retrieval: Annotated[str, typer.Option(envvar="UPHELD_RETRIEVAL", help=RETRIEVAL_HELP)] = "auto",
+    timeout: Annotated[
+        float, typer.Option(envvar="UPHELD_TIMEOUT", help="Seconds an audit may take, model loading included, before the call gives up.")
+    ] = 300.0,
+    allow_private: Annotated[bool, typer.Option(envvar="UPHELD_ALLOW_PRIVATE", help=ALLOW_PRIVATE_HELP)] = False,
+) -> None:
+    """Run an MCP server over stdio, so AI agents can check the citations in their answers."""
+    try:
+        from upheld.mcp_server import make_server
+    except ImportError as e:
+        Console(stderr=True).print(f'[red]error:[/] upheld mcp needs the mcp extra ({e.name} is missing): pip install "upheld\\[models,mcp]"')
+        raise typer.Exit(1) from e
+
+    # stdout carries the protocol, so logs go to stderr, one line each. httpx (and the httpx2 that newer
+    # huggingface_hub uses) would log every request, model downloads included.
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s", stream=sys.stderr)
+    for name in ("httpx", "httpx2"):
+        logging.getLogger(name).setLevel(logging.WARNING)
+    try:
+        make_server(verifier, threshold=threshold, retrieval=retrieval, timeout=timeout, allow_private=allow_private).run("stdio")
+    finally:
+        # While serving, the SDK points fd 1 at stderr. Stray print()s still buffered when it hands fd 1 back
+        # would reach the client as the process exits, so send those to stderr too.
+        os.dup2(2, 1)
 
 
 def render(report: AuditReport) -> None:

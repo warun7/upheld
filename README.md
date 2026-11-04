@@ -12,6 +12,7 @@ One engine, several ways in. They all call the same `run_audit()`.
 |---|---|---|
 | **Python library** (`pip install upheld`) | Developers: `upheld.audit()` checks an answer and its sources, or an OpenAI, Anthropic, Perplexity or Gemini response as the API returned it, in an eval suite, a test or a pipeline. Runs on a laptop (CPU, Apple or NVIDIA GPU), no API key, nothing leaves your machine except fetching the cited pages. | Working |
 | **CLI** (`upheld audit`) | Spot-checking an answer copied from an AI search tool, or a provider's response saved as JSON. | Working |
+| **MCP server** (`upheld mcp`) | AI agents: Claude Code, Cursor, Codex or any MCP client checks the citations in an answer it drafted before showing it, or one claim against one page while it researches. See [From an AI agent, over MCP](#from-an-ai-agent-over-mcp). | Working |
 | **HTTP API** (`pip install "upheld[api]"`, then `upheld serve`) | RAG builders: audit your pipeline's outputs in CI or as a guardrail before showing an answer, from any language. `POST /audit/{provider}` takes a provider's response as it is. Also the reward server for phase 2. | Working |
 | **Website + playground** (`web/`) | Anyone: paste an answer from Perplexity/ChatGPT/Gemini with its sources and see each claim highlighted. `upheld serve` hosts it next to the API. See [web/README.md](https://github.com/warun7/upheld/blob/main/web/README.md). | Site live at [upheld.varunsg.com](https://upheld.varunsg.com); playground not yet deployed |
 | **Browser extension** | Overlays verdicts directly on AI search answers. Calls the hosted API. Most visible, but brittle (each site's page structure changes). | Later |
@@ -54,7 +55,7 @@ unsupported It was designed by Frank Lloyd Wright.
 
 `upheld.audit` takes an answer with `[1]`-style markers or inline links, and its sources in order: URLs to fetch, or the text itself. It returns an `AuditReport` with a verdict, a support score and the evidence for every claim. To audit a provider's response as it comes back from the API, see [Use it in your code](#use-it-in-your-code).
 
-The first run downloads about 4 GB of models from Hugging Face: the two that the default ensemble verifier combines (`lytang/MiniCheck-Flan-T5-Large`, `KRLabsOrg/lettucedect-base-modernbert-en-v1`) and the retrieval embedder (`BAAI/bge-small-en-v1.5`). `verifier="minicheck"` uses one model. Plain `pip install upheld` leaves out torch and the models, and runs only `verifier="lexical", retrieval="bm25"`, which is much weaker. The most accurate verifier, `ensemble+judge`, also needs `pip install "upheld[models,judge]"`, which builds llama.cpp from source, and downloads the 8.7 GB Granite Guardian GGUF on first use. `upheld serve` needs the `api` extra (FastAPI and uvicorn): `pip install "upheld[models,api]"`.
+The first run downloads about 4 GB of models from Hugging Face: the two that the default ensemble verifier combines (`lytang/MiniCheck-Flan-T5-Large`, `KRLabsOrg/lettucedect-base-modernbert-en-v1`) and the retrieval embedder (`BAAI/bge-small-en-v1.5`). `verifier="minicheck"` uses one model. Plain `pip install upheld` leaves out torch and the models, and runs only `verifier="lexical", retrieval="bm25"`, which is much weaker. The most accurate verifier, `ensemble+judge`, also needs `pip install "upheld[models,judge]"`, which builds llama.cpp from source, and downloads the 8.7 GB Granite Guardian GGUF on first use. `upheld serve` needs the `api` extra (FastAPI and uvicorn): `pip install "upheld[models,api]"`. `upheld mcp`, the server for AI agents, needs the `mcp` extra: `pip install "upheld[models,mcp]"`.
 
 The minimum versions are as old as upheld works with (pydantic 2.0, httpx 0.21; torch 2.6 and transformers 4.48 for the models), so it installs into an existing project without forcing upgrades.
 
@@ -65,6 +66,7 @@ upheld audit answer.md                       # markdown answer with a reference 
 upheld audit response.json --from openai     # a provider's API response, saved as JSON
 upheld audit answer.md --json                # full report
 upheld serve                                 # POST /audit on http://127.0.0.1:8000 (needs upheld[api])
+upheld mcp                                   # MCP server over stdio, for AI agents (needs upheld[mcp])
 ```
 
 ### From a clone
@@ -167,6 +169,97 @@ curl -s localhost:8000/audit/auto -H 'content-type: application/json' -d @respon
 ```
 
 `POST /audit/{provider}` takes the response as its body, and the question as an optional `?question=` parameter, and returns the same report as `POST /audit`.
+
+### From an AI agent, over MCP
+
+`upheld mcp` is an [MCP](https://modelcontextprotocol.io) server, so Claude Code, Cursor, Codex and other agents can check the citations in an answer they've drafted before they show it. It runs on your machine over stdio. With [uv](https://docs.astral.sh/uv/), run it once in a terminal first: the first run installs torch and the rest, which takes a few minutes, and clients give up on a server that slow to start.
+
+```bash
+uvx --from "upheld[models,mcp]" upheld mcp --help
+```
+
+Then add it to your client.
+
+**Claude Code:**
+
+```bash
+claude mcp add --scope user upheld -- uvx --from "upheld[models,mcp]" upheld mcp
+```
+
+`--scope user` makes it available in all your projects. Leave it out for the current project only, or use `--scope project` to share it with the project through `.mcp.json`. `claude mcp list` should show it as connected.
+
+**Cursor:** add it to `~/.cursor/mcp.json`, or to `.cursor/mcp.json` in a project:
+
+```json
+{
+  "mcpServers": {
+    "upheld": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["--from", "upheld[models,mcp]", "upheld", "mcp"]
+    }
+  }
+}
+```
+
+**Codex CLI:** add it to `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.upheld]
+command = "uvx"
+args = ["--from", "upheld[models,mcp]", "upheld", "mcp"]
+startup_timeout_sec = 60
+tool_timeout_sec = 600
+```
+
+`codex mcp add upheld -- uvx --from "upheld[models,mcp]" upheld mcp` writes the first three lines. Add the timeouts by hand: Codex gives up on a tool call after 60 seconds by default, and the first call waits for the models to load.
+
+**Any other client:** a stdio server with the command `uvx` and the arguments `--from upheld[models,mcp] upheld mcp`. Clients configured with JSON mostly take the Cursor entry above. Without uv, `pip install "upheld[models,mcp]"` and use the command `upheld` with the argument `mcp`.
+
+The server has two tools:
+
+| Tool | Takes | Returns |
+|---|---|---|
+| `audit_citations` | An answer with `[1]`-style markers or inline links, and its sources in order: URLs, the sources' text, or `{id, url, title, text}` objects. Or a provider's response, as for `upheld.audit`. Optionally the question. | Counts of each verdict, and for each claim that isn't supported its verdict, the cited URL, the score, the closest passage and a note, such as "checked against the Wayback Machine copy of 2026-10-02". `full_report: true` adds the whole report. |
+| `check_claim` | One statement, and one source's URL or text | The verdict, score and closest passage, whether or not the source backs it |
+
+For an answer that says the Eiffel Tower "was designed by Frank Lloyd Wright [1]", citing Wikipedia, the agent gets this (the passage is shortened here):
+
+```json
+{
+  "summary": "1 of 2 cited claims supported",
+  "verdicts": {"supported": 1, "unsupported": 1},
+  "problems": [
+    {
+      "claim": "It was designed by Frank Lloyd Wright.",
+      "verdict": "unsupported",
+      "citations": [
+        {
+          "source": "1",
+          "url": "https://en.wikipedia.org/wiki/Eiffel_Tower",
+          "verdict": "unsupported",
+          "score": 0.209,
+          "closest_passage": "... It is named after the engineer Gustave Eiffel, whose company designed and built the tower from 1887 to 1889. ...",
+          "not_in_source": ["Frank Lloyd Wright"],
+          "flagged": ["It was designed by Frank Lloyd Wright"]
+        }
+      ]
+    }
+  ],
+  "verifier": "ensemble:minicheck+lexical+lettuce@0.5",
+  "retrieval": "hybrid:bm25+bge-small-en-v1.5"
+}
+```
+
+The models load on the first call, in about half a minute once they're downloaded, and stay loaded. Later calls take a few seconds, mostly fetching pages. Audits run one at a time, report progress while they run, and stop after 300 seconds. Each client session starts its own server, which holds about 4 GB once it has loaded the models. Options go after `upheld mcp`, or in the server's environment:
+
+| Option | Environment variable | Default |
+|---|---|---|
+| `--verifier` | `UPHELD_VERIFIER` | `ensemble`. `lexical` with `--retrieval bm25` needs no models (just `upheld[mcp]`) but is much weaker; `ensemble+judge` needs `upheld[models,judge,mcp]`. |
+| `--retrieval` | `UPHELD_RETRIEVAL` | `auto` |
+| `--threshold` | `UPHELD_THRESHOLD` | the verifier's |
+| `--timeout` | `UPHELD_TIMEOUT` | `300` seconds per call, model loading included |
+| `--allow-private` | `UPHELD_ALLOW_PRIVATE` | off, so localhost and private-network URLs are refused |
 
 ## How it works
 
@@ -370,7 +463,8 @@ The labels in `labels-claude.jsonl` came from Claude subagents given `labeling-g
 - Speed: MiniCheck in bf16, and batching claims across sources
 - ~~PDF sources~~ done: read with pypdf, which made 9 of the 10 PDFs cited in the fresh benchmark readable. Next: OCR for scans
 - ~~Read archived copies of pages upheld can't read~~ done: a page that blocks upheld, times out, serves a block page or is dead is read from the Wayback Machine's newest copy, which cut the fresh benchmark's unverifiable citations from 142 (22%) to 50 (8%)
-- ~~Installable package and provider responses~~ done: `pip install upheld`, `upheld.audit()`, and OpenAI, Anthropic, Perplexity and Gemini responses read with their own citation data. Next: an MCP server so coding agents can check the citations in their drafts, then a pytest helper and a GitHub Action
+- ~~Installable package and provider responses~~ done: `pip install upheld`, `upheld.audit()`, and OpenAI, Anthropic, Perplexity and Gemini responses read with their own citation data
+- ~~MCP server~~ done: `upheld mcp`, so Claude Code, Cursor, Codex and other agents check the citations in an answer before they show it. Next: a pytest helper and a GitHub Action
 - ~~Web app~~ done: landing page and playground in `web/`, with the site live at [upheld.varunsg.com](https://upheld.varunsg.com). Next: deploy the playground with the hosted API, then a browser extension
 
 **Phase 2: train a search agent to cite honestly**
