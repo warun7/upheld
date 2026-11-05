@@ -4,7 +4,7 @@ import { useRef, type ReactNode } from "react";
 import { Reveal } from "../components/Reveal";
 import { ScrollLit, Section, Ticker } from "../components/ui";
 import { PROBLEM_STATS } from "../data/benchmarks";
-import type { Verdict } from "../lib/api";
+import type { Verdict } from "../lib/report";
 import { VERDICTS } from "../lib/verdicts";
 
 export function Problem() {
@@ -81,7 +81,7 @@ export function HowItWorks() {
       <div className="grid grid-cols-1 gap-6 px-5 py-16 sm:px-8 md:py-20 lg:grid-cols-2 lg:items-end lg:px-12">
         <h2 className="display text-4xl leading-[1.02] md:text-[3.25rem]">Four passes over every answer</h2>
         <p className="max-w-[48ch] text-lg leading-relaxed text-ink-2 lg:justify-self-end">
-          Each claim ends up with one verdict per citation, the passage it was checked against, and a score. This is the run behind the demo above.
+          Each claim ends up with one verdict per citation, the passage it was checked against, and a score. This is the run behind the report above.
         </p>
       </div>
       <ol className="ruled relative grid-cols-1 border-t border-line md:grid-cols-2 xl:grid-cols-4">

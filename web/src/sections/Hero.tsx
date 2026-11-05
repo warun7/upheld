@@ -1,8 +1,7 @@
 import { motion, useReducedMotion } from "motion/react";
 import { GlyphField } from "../components/GlyphField";
-import { GithubMark } from "../components/icons";
 import { CopyBar, LinkButton, Section, Ticker } from "../components/ui";
-import { GITHUB_URL, PRIMARY_CTA } from "../lib/site";
+import { CTA, GITHUB_URL, SECONDARY_CTA } from "../lib/site";
 
 const QUICKSTART = 'pip install "upheld[models]"';
 
@@ -62,17 +61,20 @@ export function Hero() {
         </h1>
         <div className="mt-10 grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end lg:gap-16">
           <motion.p {...fade(0.45)} className="max-w-[36rem] text-lg leading-relaxed text-ink-2">
-            Paste an answer from ChatGPT, Perplexity or your own RAG pipeline. upheld splits it into claims, reads every page it cites, and flags what the
-            sources don't back.
+            Point it at an answer from ChatGPT, Perplexity, Gemini or your own RAG pipeline. It splits the answer into claims, reads every page it cites, and
+            tells you which claims the sources actually back. Runs locally: no API key, no account.
           </motion.p>
           <motion.div {...fade(0.55)} className="grid w-full max-w-[25rem] grid-cols-1 gap-5">
-            <div className="flex flex-wrap gap-x-4 gap-y-5">
-              <LinkButton href={PRIMARY_CTA.href} arrow>
-                {PRIMARY_CTA.label}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-5">
+              <LinkButton href={CTA.href} arrow>
+                {CTA.label}
               </LinkButton>
-              <LinkButton href={GITHUB_URL} variant="ghost" icon={<GithubMark />}>
-                View on GitHub
+              <LinkButton href={SECONDARY_CTA.href} variant="ghost">
+                {SECONDARY_CTA.label}
               </LinkButton>
+              <a href={GITHUB_URL} className="text-sm text-ink-2 underline decoration-line-strong underline-offset-4 hover:text-ink">
+                GitHub
+              </a>
             </div>
             <CopyBar label="Copy quickstart" text={QUICKSTART} />
           </motion.div>

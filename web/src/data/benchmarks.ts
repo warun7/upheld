@@ -268,7 +268,41 @@ export const FRESH_AGENTS: { name: string; model: string; counts: Record<FreshLa
 ];
 
 // upheld's verdicts against those labels, on the citations whose page it could read. Partial counts as unsupported.
+// This is the whole pipeline (fetching, retrieval, verifier), re-audited 3 and 4 November; README "Fresh 2026 benchmark".
 export const FRESH_UPHELD = { read: 554, agreement: 75, recall: 90, precision: 70 };
+
+// The verifier alone, on the same labels: 564 citations, fetched once and scored with upheld's passages, so its numbers
+// differ slightly from FRESH_UPHELD (554, whole pipeline). Label which set a figure comes from wherever it appears.
+// Columns from the README's Fresh 2026 table; time and memory from its "Speed" note and the MCP section.
+export const FRESH_VERIFIED_CITATIONS = 564;
+export const FRESH_VERIFIERS: {
+  verifier: string;
+  passages: number;
+  agreement: number;
+  badFlagged: number;
+  goodFlagged: number;
+  time: string;
+  memory: string;
+}[] = [
+  {
+    verifier: "ensemble",
+    passages: 3,
+    agreement: 76,
+    badFlagged: 91,
+    goodFlagged: 38,
+    time: "0.3–1 s per claim per source, on an M5 Pro",
+    memory: "about 4 GB, loaded",
+  },
+  {
+    verifier: "ensemble+judge",
+    passages: 10,
+    agreement: 84,
+    badFlagged: 86,
+    goodFlagged: 18,
+    time: "about 2.5–3 s per claim per source, with Metal",
+    memory: "about 9 GB free, plus an 8.7 GB model",
+  },
+];
 
 export const PROBLEM_STATS = [
   {

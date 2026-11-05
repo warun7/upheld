@@ -1,10 +1,10 @@
 import { CaretDownIcon } from "@phosphor-icons/react";
-import { StrictMode, useEffect, useState } from "react";
-import { createRoot } from "react-dom/client";
+import { useEffect, useState } from "react";
 import { Footer, Nav } from "./components/Chrome";
 import { Section } from "./components/ui";
 import { DOCS } from "./docs/content";
 import { DocSection } from "./docs/prose";
+import { mount } from "./mount";
 import "./styles.css";
 
 const PAGES = DOCS.flatMap((g) => g.pages);
@@ -66,7 +66,7 @@ function Toc({ active, onPick }: { active: string; onPick?: () => void }) {
   );
 }
 
-function Docs() {
+export function Docs() {
   const active = useActivePage();
   const [open, setOpen] = useState(false);
   return (
@@ -120,8 +120,4 @@ function Docs() {
   );
 }
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <Docs />
-  </StrictMode>,
-);
+mount(<Docs />);

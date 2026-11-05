@@ -8,6 +8,8 @@ import {
   FRESH_AGENTS,
   FRESH_LABELS,
   FRESH_UPHELD,
+  FRESH_VERIFIED_CITATIONS,
+  FRESH_VERIFIERS,
   METRICS,
   SUBSETS,
   SUBSET_TABLE,
@@ -20,6 +22,93 @@ import {
 const DOMAIN: [number, number] = [50, 90];
 const TICKS = [50, 60, 70, 80, 90];
 const pct = (v: number) => ((v - DOMAIN[0]) / (DOMAIN[1] - DOMAIN[0])) * 100;
+
+const [ENSEMBLE, JUDGE] = FRESH_VERIFIERS;
+
+/** The summary that opens the section: plain numbers first, tables after. Every figure is from FRESH_VERIFIERS. */
+export function Quality() {
+  return (
+    <Section id="quality">
+      <div className="grid grid-cols-1 gap-8 px-5 py-16 sm:px-8 md:py-20 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:gap-12 lg:px-12">
+        <div>
+          <p className="label">Quality</p>
+          <h2 className="display mt-5 text-4xl leading-[1.02] md:text-[3.25rem]">How good is it</h2>
+        </div>
+        <div className="space-y-5">
+          <p className="text-xl leading-relaxed text-ink sm:text-2xl sm:leading-relaxed">
+            On {FRESH_VERIFIED_CITATIONS} real 2026 citations whose page it could read, the default verifier catches {ENSEMBLE.badFlagged}% of bad citations and
+            wrongly flags {ENSEMBLE.goodFlagged}% of good ones. With the opt-in LLM judge: {JUDGE.badFlagged}% and {JUDGE.goodFlagged}%. Treat the default's flags as
+            a queue to review, and the judge's as an opinion you can act on.
+          </p>
+          <p className="text-sm text-ink-3">
+            Verifier alone, on the labels in the 2026 section below; bad means partial or unsupported. The whole pipeline, on {FRESH_UPHELD.read} of those citations, is a little
+            different and is labeled as such wherever it appears.
+          </p>
+        </div>
+      </div>
+    </Section>
+  );
+}
+
+/** One row per agent: a 100% bar split into supported, partial and unsupported, with can't judge as the grey remainder. */
+const FRESH_SEGMENTS: { id: Exclude<FreshLabel, "cant_judge">; fill: string }[] = [
+  { id: "supported", fill: "fill-accent" },
+  { id: "partial", fill: "fill-partial" },
+  { id: "unsupported", fill: "fill-bad" },
+];
+
+function FreshChart() {
+  const rows = [...FRESH_AGENTS].sort((a, b) => b.counts.supported / total(b.counts) - a.counts.supported / total(a.counts));
+  return (
+    <div>
+      <ul className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-ink-2">
+        {[...FRESH_SEGMENTS, { id: "cant_judge" as const, fill: "fill-line" }].map((seg) => (
+          <li key={seg.id} className="inline-flex items-center gap-2">
+            <svg viewBox="0 0 8 8" className={`block size-3 ${seg.fill}`} aria-hidden>
+              <rect width="8" height="8" />
+            </svg>
+            {FRESH_LABELS.find((l) => l.id === seg.id)!.label}
+          </li>
+        ))}
+      </ul>
+      <ul className="mt-8 space-y-7">
+        {rows.map((a) => {
+          const n = total(a.counts);
+          let start = 0;
+          const widths = FRESH_LABELS.map((l) => ({ id: l.id, w: (a.counts[l.id] / n) * 100 }));
+          const label = FRESH_LABELS.map((l) => `${Math.round(a.counts[l.id] / n * 100)}% ${l.label.toLowerCase()}`).join(", ");
+          return (
+            <li key={a.name}>
+              <div className="flex items-baseline justify-between gap-4">
+                <p className="min-w-0 truncate">
+                  <span className="font-semibold">{a.name}</span> <span className="text-xs text-ink-3">{a.model}</span>
+                </p>
+                <p className="shrink-0 font-mono text-xs text-ink-3">{n} citations</p>
+              </div>
+              <svg viewBox="0 0 100 10" preserveAspectRatio="none" className="mt-2.5 block h-7 w-full" role="img" aria-label={`${a.name}: ${label}`}>
+                <rect x="0" y="0" width="100" height="10" className="fill-line" />
+                {FRESH_SEGMENTS.map((seg) => {
+                  const w = widths.find((x) => x.id === seg.id)!.w;
+                  const x = start;
+                  start += w;
+                  return <rect key={seg.id} x={x} y="0" width={w} height="10" className={seg.fill} />;
+                })}
+              </svg>
+              <p className="mt-2 font-mono text-xs text-ink-2">
+                {FRESH_LABELS.map((l, i) => (
+                  <span key={l.id}>
+                    {i > 0 && <span className="text-ink-3"> · </span>}
+                    <span className="text-ink">{Math.round((a.counts[l.id] / n) * 100)}%</span> {l.label.toLowerCase()}
+                  </span>
+                ))}
+              </p>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
 
 function Segmented({ value, onChange }: { value: Metric; onChange: (m: Metric) => void }) {
   return (
@@ -242,7 +331,7 @@ export function Benchmarks() {
   const [metric, setMetric] = useState<Metric>("id");
   const note = METRICS.find((m) => m.id === metric)!.note;
   return (
-    <Section id="benchmarks">
+    <Section>
       <div className="ruled grid-cols-1 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
         <div className="flex flex-col px-5 py-16 sm:px-8 md:py-20 lg:px-12">
           <p className="label">AttributionBench</p>
@@ -418,99 +507,8 @@ export function EditedClaims() {
   );
 }
 
-const FILL: Record<FreshLabel, string> = {
-  supported: "bg-accent text-on-accent",
-  partial: "bg-partial text-ink",
-  unsupported: "bg-bad text-on-accent",
-  cant_judge: "hatch bg-cell-2 text-ink-2 shadow-[inset_0_0_0_1px_var(--line-strong)]",
-};
-
 const total = (counts: Record<FreshLabel, number>) => Object.values(counts).reduce((a, b) => a + b, 0);
 const share = (n: number, of: number) => `${Math.round((n / of) * 100)}%`;
-
-/** 100% stacked bars, one per agent. Segments 10% or wider carry their share; hover any segment for the count. */
-function FreshBars() {
-  const ref = useRef<HTMLDivElement>(null);
-  const play = useInView(ref, { once: true, amount: 0.4 });
-  const reduce = useReducedMotion();
-  const [hover, setHover] = useState<{ agent: string; id: FreshLabel } | null>(null);
-  const rows = [...FRESH_AGENTS].sort((a, b) => b.counts.supported / total(b.counts) - a.counts.supported / total(a.counts));
-
-  return (
-    <div ref={ref}>
-      <ul className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-ink-2">
-        {FRESH_LABELS.map((l) => (
-          <li key={l.id} className="inline-flex items-center gap-2">
-            <span className={`block size-3 ${FILL[l.id]}`} aria-hidden /> {l.label}
-          </li>
-        ))}
-      </ul>
-      <ul className="mt-8 space-y-7">
-        {rows.map((a) => {
-          const n = total(a.counts);
-          let start = 0;
-          const segments = FRESH_LABELS.map((l) => {
-            const pct = (a.counts[l.id] / n) * 100;
-            const seg = { ...l, count: a.counts[l.id], pct, mid: start + pct / 2 };
-            start += pct;
-            return seg;
-          });
-          const active = hover?.agent === a.name ? segments.find((s) => s.id === hover.id) : undefined;
-          return (
-            <li key={a.name} aria-label={`${a.name}: ${segments.map((s) => `${Math.round(s.pct)}% ${s.label.toLowerCase()}`).join(", ")}`}>
-              <div className="flex items-baseline justify-between gap-4">
-                <p className="min-w-0 truncate">
-                  <span className="font-semibold">{a.name}</span> <span className="text-xs text-ink-3">{a.model}</span>
-                </p>
-                <p className="shrink-0 font-mono text-xs text-ink-3">{n} citations</p>
-              </div>
-              <div className="relative mt-2.5" aria-hidden>
-                <motion.div
-                  className="flex h-10 gap-[2px]"
-                  initial={reduce ? false : { clipPath: "inset(0 100% 0 0)" }}
-                  animate={{ clipPath: play || reduce ? "inset(0 0% 0 0)" : "inset(0 100% 0 0)" }}
-                  transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-                  onMouseLeave={() => setHover(null)}
-                >
-                  {segments.map((s) => (
-                    <div
-                      key={s.id}
-                      className={`flex min-w-0 items-center justify-center font-mono text-xs transition-opacity ${FILL[s.id]} ${active && active.id !== s.id ? "opacity-45" : ""}`}
-                      style={{ flex: `${s.count} 1 0` }}
-                      onMouseEnter={() => setHover({ agent: a.name, id: s.id })}
-                    >
-                      {s.pct >= 10 && Math.round(s.pct) + "%"}
-                    </div>
-                  ))}
-                </motion.div>
-                <AnimatePresence>
-                  {active && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 4 }}
-                      transition={{ duration: 0.15 }}
-                      className="pointer-events-none absolute bottom-full z-10 mb-2 w-56 -translate-x-1/2 bg-cell p-3 text-xs shadow-[inset_0_0_0_1px_var(--line-strong),var(--shadow)]"
-                      style={{ left: `${Math.min(Math.max(active.mid, 20), 80)}%` }}
-                    >
-                      <p className="font-medium text-ink">
-                        {a.name}: {active.label.toLowerCase()}
-                      </p>
-                      <p className="mt-1 font-mono text-ink">
-                        {active.count} of {n} <span className="text-ink-3">({share(active.count, n)})</span>
-                      </p>
-                      <p className="mt-1 text-ink-3">{active.note}</p>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
-}
 
 const FRESH_NOTES = [
   {
@@ -523,7 +521,7 @@ const FRESH_NOTES = [
   },
   {
     title: "A first filter, not the final word",
-    body: "upheld misses few bad citations, but 3 in 10 flags are false alarms. Block pages are now reported unreadable, and the opt-in LLM judge, reading 10 passages per claim, halves false alarms on good citations: 38% to 18%.",
+    body: "Whole pipeline: upheld misses few bad citations, but about 3 in 10 flags are false alarms. Block pages are now reported unreadable. Verifier alone, the opt-in LLM judge, reading 10 passages per claim, halves false alarms on good citations: 38% to 18%.",
   },
   {
     title: "Labeled by Claude, checked by GPT and Gemini",
@@ -544,14 +542,14 @@ export function FreshBenchmark() {
           </p>
           <div className="mt-auto grid grid-cols-2 gap-8 pt-12">
             <div>
-              <p className="text-sm text-ink-2">Bad citations flagged</p>
+              <p className="text-sm text-ink-2">Bad citations flagged, whole pipeline</p>
               <p className="display mt-2 text-5xl leading-none text-accent-ink md:text-6xl">
                 <Ticker value={`${FRESH_UPHELD.recall}%`} />
               </p>
               <p className="mt-2 text-xs text-ink-3">Partial or unsupported, of the {FRESH_UPHELD.read} upheld could read</p>
             </div>
             <div>
-              <p className="text-sm text-ink-2">Flags that were right</p>
+              <p className="text-sm text-ink-2">Flags that were right, whole pipeline</p>
               <p className="display mt-2 text-5xl leading-none text-ink md:text-6xl">
                 <Ticker value={`${FRESH_UPHELD.precision}%`} />
               </p>
@@ -563,7 +561,7 @@ export function FreshBenchmark() {
         <div className="bg-cell! px-5 py-8 sm:px-8 lg:px-10 lg:py-12">
           <p className="text-sm text-ink-3">Each citation, judged against the page it points to. Sorted by share supported.</p>
           <div className="mt-6">
-            <FreshBars />
+            <FreshChart />
           </div>
         </div>
       </div>

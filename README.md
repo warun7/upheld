@@ -1,6 +1,12 @@
 # upheld
 
-Checks whether an AI answer's citations actually support its claims.
+upheld checks the citations in an AI answer against the pages they cite.
+
+Point it at an answer from ChatGPT, Perplexity, Gemini or a RAG pipeline. It reads every cited page and says which claims the sources back. Runs locally: no API key.
+
+![A real upheld report: each claim marked supported or flagged, with the passage behind it](web/public/og.png)
+
+Try it: `pip install "upheld[models]"` · [Site](https://upheld.varunsg.com) · [Benchmarks](#how-good-is-it) · [Limitations](#known-limitations)
 
 AI search tools and deep-research agents now mostly cite real, working links, but the cited page often doesn't say what the answer claims: [one 2026 study](https://arxiv.org/abs/2605.06635) of 14 models found only 39–77% of cited facts were actually in the source. Link checkers can't see it. upheld splits an answer into claims, finds the relevant passage in each cited source, and says which claims the sources really back.
 
@@ -14,8 +20,9 @@ One engine, several ways in. They all call the same `run_audit()`.
 | **CLI** (`upheld audit`) | Spot-checking an answer copied from an AI search tool, or a provider's response saved as JSON. | Working |
 | **MCP server** (`upheld mcp`) | AI agents: Claude Code, Cursor, Codex or any MCP client checks the citations in an answer it drafted before showing it, or one claim against one page while it researches. See [From an AI agent, over MCP](#from-an-ai-agent-over-mcp). | Working |
 | **HTTP API** (`pip install "upheld[api]"`, then `upheld serve`) | RAG builders: audit your pipeline's outputs in CI or as a guardrail before showing an answer, from any language. `POST /audit/{provider}` takes a provider's response as it is. Also the reward server for phase 2. | Working |
-| **Website + playground** (`web/`) | Anyone: paste an answer from Perplexity/ChatGPT/Gemini with its sources and see each claim highlighted. `upheld serve` hosts it next to the API. See [web/README.md](https://github.com/warun7/upheld/blob/main/web/README.md). | Site live at [upheld.varunsg.com](https://upheld.varunsg.com); playground not yet deployed |
 | **Browser extension** | Overlays verdicts directly on AI search answers. Calls the hosted API. Most visible, but brittle (each site's page structure changes). | Later |
+
+The site is static; a hosted playground would need a model server and isn't deployed.
 
 ## What it reports
 

@@ -1,7 +1,7 @@
 import { ArrowUpRightIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
-import { AUTHOR, DOCS_URL, GITHUB_URL, HAS_PLAYGROUND, PLAYGROUND_URL, PRIMARY_CTA } from "../lib/site";
+import { AUTHOR, CTA, DOCS_URL, GITHUB_URL } from "../lib/site";
 import { GithubMark, MoonGlyph, SunGlyph } from "./icons";
 import { LinkButton } from "./ui";
 
@@ -63,9 +63,9 @@ export function ThemeToggle() {
 }
 
 const LINKS = [
-  { id: "demo", label: "Demo" },
+  { id: "report", label: "Report" },
   { id: "how", label: "How it works" },
-  { id: "benchmarks", label: "Benchmarks" },
+  { id: "quality", label: "Quality" },
   { id: "limits", label: "Limitations" },
   { id: "install", label: "Install" },
 ];
@@ -92,7 +92,7 @@ function useActiveSection(enabled: boolean) {
   return active;
 }
 
-export function Nav({ page }: { page: "landing" | "docs" | "app" }) {
+export function Nav({ page }: { page: "landing" | "docs" }) {
   const active = useActiveSection(page === "landing");
   // The page renders after the browser's own jump to a #section link, so make the jump once it exists.
   useEffect(() => {
@@ -130,12 +130,8 @@ export function Nav({ page }: { page: "landing" | "docs" | "app" }) {
             <GithubMark size={17} />
           </a>
           {page === "landing" ? (
-            <LinkButton href={PRIMARY_CTA.href} size="sm" className="ml-2">
-              {PRIMARY_CTA.label}
-            </LinkButton>
-          ) : page === "docs" && HAS_PLAYGROUND ? (
-            <LinkButton href={PLAYGROUND_URL} size="sm" className="ml-2">
-              Open playground
+            <LinkButton href={CTA.href} size="sm" className="ml-2">
+              {CTA.label}
             </LinkButton>
           ) : (
             <LinkButton href="/" size="sm" variant="ghost" className="ml-2">
@@ -150,45 +146,54 @@ export function Nav({ page }: { page: "landing" | "docs" | "app" }) {
 
 export function Footer() {
   return (
-    <footer className="border-t border-line">
-      <div className="frame grid grid-cols-1 gap-10 px-5 py-12 sm:px-8 md:grid-cols-[minmax(0,1fr)_auto] md:items-end lg:px-12">
-        <div>
-          <Logo />
-          <p className="mt-4 max-w-[40ch] text-sm leading-relaxed text-ink-2">
-            Checks whether an AI answer's citations actually support its claims. Open source, MIT licensed.
-          </p>
-        </div>
-        <ul className="flex flex-wrap gap-x-6 gap-y-3 text-sm text-ink-2">
-          <li>
-            <a href={DOCS_URL} className="hover:text-ink">
-              Docs
+    <>
+      <div className="border-t border-line">
+        <p className="frame flex flex-wrap items-center gap-x-5 gap-y-2 px-5 py-5 text-sm text-ink-2 sm:px-8 lg:px-12">
+          <span>
+            Built by{" "}
+            <a href={AUTHOR.url} className="text-ink hover:underline">
+              {AUTHOR.name}
             </a>
-          </li>
-          {HAS_PLAYGROUND && (
+          </span>
+          <a href={AUTHOR.github} className="inline-flex items-center gap-1 hover:text-ink">
+            GitHub
+            <ArrowUpRightIcon size={13} weight="bold" aria-hidden />
+          </a>
+        </p>
+      </div>
+      <footer className="border-t border-line">
+        <div className="frame grid grid-cols-1 gap-10 px-5 py-12 sm:px-8 md:grid-cols-[minmax(0,1fr)_auto] md:items-end lg:px-12">
+          <div>
+            <Logo />
+            <p className="mt-4 max-w-[40ch] text-sm leading-relaxed text-ink-2">
+              Checks whether an AI answer's citations actually support its claims. Open source, MIT licensed.
+            </p>
+          </div>
+          <ul className="flex flex-wrap gap-x-6 gap-y-3 text-sm text-ink-2">
             <li>
-              <a href={PLAYGROUND_URL} className="hover:text-ink">
-                Playground
+              <a href={DOCS_URL} className="hover:text-ink">
+                Docs
               </a>
             </li>
-          )}
-          <li>
-            <a href={`${GITHUB_URL}#readme`} className="hover:text-ink">
-              README
-            </a>
-          </li>
-          <li>
-            <a href={`${GITHUB_URL}/tree/main/evals`} className="hover:text-ink">
-              Evals
-            </a>
-          </li>
-          <li>
-            <a href={AUTHOR.url} className="inline-flex items-center gap-1 hover:text-ink">
-              Built by {AUTHOR.name}
-              <ArrowUpRightIcon size={13} weight="bold" aria-hidden />
-            </a>
-          </li>
-        </ul>
-      </div>
-    </footer>
+            <li>
+              <a href={`${GITHUB_URL}#readme`} className="hover:text-ink">
+                README
+              </a>
+            </li>
+            <li>
+              <a href={`${GITHUB_URL}/tree/main/evals`} className="hover:text-ink">
+                Evals
+              </a>
+            </li>
+            <li>
+              <a href={AUTHOR.url} className="inline-flex items-center gap-1 hover:text-ink">
+                Built by {AUTHOR.name}
+                <ArrowUpRightIcon size={13} weight="bold" aria-hidden />
+              </a>
+            </li>
+          </ul>
+        </div>
+      </footer>
+    </>
   );
 }

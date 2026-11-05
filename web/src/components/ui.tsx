@@ -1,6 +1,6 @@
 import { ArrowRightIcon, CheckIcon, CopyIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion, useInView, useReducedMotion, useScroll, useTransform, type MotionValue } from "motion/react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
 /** A full-bleed rule with the framed column inside it, crosses where they meet. */
 export function Section({
@@ -120,18 +120,20 @@ export function CopyBar({ label, text, className = "" }: { label: string; text: 
 
 const easeOut = (x: number) => 1 - Math.pow(1 - x, 4);
 
-/** Counts every number in a string up from zero the first time it scrolls into view. */
+/**
+ * Shows every number in a string. The final value is in the markup from the first render, so it reads without JS or under
+ * reduced motion. The first time it scrolls into view, the numbers count up from zero.
+ */
 export function Ticker({ value, className = "", duration = 1400 }: { value: string; className?: string; duration?: number }) {
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true, amount: 0.6 });
   const reduce = useReducedMotion();
-  const [k, setK] = useState(reduce ? 1 : 0);
+  const [k, setK] = useState(1);
 
-  useEffect(() => {
-    if (!inView || reduce) {
-      if (reduce) setK(1);
-      return;
-    }
+  // A layout effect, so the count starts from zero before the browser paints anything else.
+  useLayoutEffect(() => {
+    if (!inView || reduce) return;
+    setK(0);
     let raf = 0;
     const t0 = performance.now();
     const step = (now: number) => {

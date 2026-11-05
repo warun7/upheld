@@ -1,7 +1,8 @@
-import type { ReactNode } from "react";
-import { SYSTEMS } from "../data/benchmarks";
-import type { LinkStatus, Verdict } from "../lib/api";
-import { GITHUB_URL, HAS_PLAYGROUND, PLAYGROUND_URL } from "../lib/site";
+import { Fragment, type ReactNode } from "react";
+import { FRESH_VERIFIED_CITATIONS, FRESH_VERIFIERS, SYSTEMS } from "../data/benchmarks";
+import { BROKEN, PATHS, SNIPPETS, type SnippetTab } from "../data/install";
+import type { LinkStatus, Verdict } from "../lib/report";
+import { GITHUB_URL } from "../lib/site";
 import { LINK_STATUS, VERDICT_ORDER, VerdictLabel } from "../lib/verdicts";
 import { A, C, Code, H3, Note, Table } from "./prose";
 
@@ -50,7 +51,7 @@ const overview: DocPage = {
         ]}
       />
       <Note>
-        There's no hosted version yet{HAS_PLAYGROUND ? " apart from the playground" : ""}: you run upheld on your own machine. It needs no API key and sends nothing
+        There's no hosted version: you run upheld on your own machine. It needs no API key and sends nothing
         anywhere except requests for the cited pages (and the Wayback Machine, for pages that are dead or can't be read).
       </Note>
     </>
@@ -501,7 +502,7 @@ const verifiers: DocPage = {
       />
       <p>
         The ensemble takes roughly 0.3 to 1 second per claim per source on an Apple M5 Pro and is several times slower on CPU; the judge ensemble reads 10 passages per claim and takes about 2.5 to 3 seconds. For
-        the full comparison, including GPT-4 and fine-tuned models, see the <A href="/#benchmarks">benchmarks</A>.
+        the full comparison, including GPT-4 and fine-tuned models, see the <A href="/#quality">benchmarks</A>.
       </p>
       <H3>Thresholds</H3>
       <p>
@@ -547,7 +548,7 @@ const selfHost: DocPage = {
   body: (
     <>
       <p>
-        The <C>Dockerfile</C> in the repo builds one image with the API{HAS_PLAYGROUND ? ", this website and the playground" : " and this website"}. It bakes the
+        The <C>Dockerfile</C> in the repo builds one image with the API and this website. It bakes the
         default models in, so a cold start doesn't download them. The judge isn't included.
       </p>
       <Code>{`docker build -t upheld .
@@ -616,7 +617,7 @@ const report: DocPage = {
     <>
       <p>
         <C>--json</C>, <C>POST /audit</C>, <C>upheld.audit()</C> and <C>run_audit()</C> all return the same report. This one is from the Eiffel Tower answer on the{" "}
-        <A href="/#demo">home page</A>, trimmed to one claim:
+        <A href="/#report">home page</A>, trimmed to one claim:
       </p>
       <Code label="json">{`{
   "verifier": "ensemble:minicheck+lexical+lettuce@0.5",
@@ -735,7 +736,7 @@ const cli: DocPage = {
       </p>
       <H3>upheld serve</H3>
       <p>
-        Run the HTTP API, plus the website{HAS_PLAYGROUND ? " and playground" : ""} when <C>web/dist</C> is built. Takes <C>--host</C> (default{" "}
+        Run the HTTP API, plus the website when <C>web/dist</C> is built. Takes <C>--host</C> (default{" "}
         <C>127.0.0.1</C>), <C>--port</C> (default <C>8000</C>), <C>--verifier</C> and <C>--retrieval</C>. Needs the <C>api</C> extra:{" "}
         <C>pip install "upheld[api]"</C>.
       </p>
@@ -811,19 +812,63 @@ const troubleshooting: DocPage = {
       />
       <p>
         Something else? <A href={`${GITHUB_URL}/issues`}>Open an issue</A>.
-        {HAS_PLAYGROUND && (
-          <>
-            {" "}
-            Or try the answer in the <A href={PLAYGROUND_URL}>playground</A> first.
-          </>
-        )}
       </p>
     </>
   ),
 };
 
+const CODE_LABEL: Record<SnippetTab, string> = { CLI: "shell", Python: "python", HTTP: "shell", MCP: "shell" };
+
+const setup: DocPage = {
+  id: "setup",
+  title: "Set up and first run",
+  body: (
+    <>
+      <p>
+        Three paths on the same engine: check one answer from the command line, audit a pipeline from Python or over HTTP, or let an AI agent check its own
+        citations over MCP. Each block below runs as it stands.
+      </p>
+      <p>
+        The first audit downloads about 4 GB of models into <C>~/.cache/huggingface</C>, which takes minutes. After that, loading the models takes about half a
+        minute, and each later audit takes seconds.
+      </p>
+      {PATHS.map((p) => (
+        <Fragment key={p.tab}>
+          <H3>{p.name}</H3>
+          {p.text.map((t) => (
+            <p key={t}>{t}</p>
+          ))}
+          <Code label={CODE_LABEL[p.tab]}>{SNIPPETS[p.tab]}</Code>
+        </Fragment>
+      ))}
+      <H3>Choosing a verifier</H3>
+      <p>
+        Agreement and flags are on the {FRESH_VERIFIED_CITATIONS} labeled 2026 citations, with the verifier alone. Bad means partial or unsupported.
+        The judge needs the <C>judge</C> extra, which builds llama.cpp and downloads 8.7 GB.
+      </p>
+      <Table
+        head={["Verifier", "Passages per claim", "Agreement", "Bad citations flagged", "Good citations flagged", "Time per claim", "Memory"]}
+        rows={FRESH_VERIFIERS.map((v) => [
+          <C>{v.verifier}</C>,
+          String(v.passages),
+          `${v.agreement}%`,
+          `${v.badFlagged}%`,
+          `${v.goodFlagged}%`,
+          v.time,
+          v.memory,
+        ])}
+      />
+      <p>
+        Pick <C>ensemble</C> for speed, <C>ensemble+judge</C> if you'll act on the flags.
+      </p>
+      <H3>When it looks broken</H3>
+      <Table mono={false} head={["What you see", "What's going on"]} rows={BROKEN.map(([problem, fix]) => [problem, fix])} />
+    </>
+  ),
+};
+
 export const DOCS: { group: string; pages: DocPage[] }[] = [
-  { group: "Getting started", pages: [overview, install, quickstart] },
+  { group: "Getting started", pages: [overview, install, setup, quickstart] },
   { group: "Guides", pages: [providers, auditAnswer, python, http, mcp, verifiers, evaluate, selfHost] },
   { group: "Reference", pages: [input, report, verdicts, cli, howItWorks, troubleshooting] },
 ];

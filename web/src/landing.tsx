@@ -1,23 +1,23 @@
-import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
 import { Footer, Nav } from "./components/Chrome";
-import { Benchmarks, EditedClaims, FreshBenchmark } from "./sections/Benchmarks";
+import { Benchmarks, EditedClaims, FreshBenchmark, Quality } from "./sections/Benchmarks";
 import { FinalCta, Install, Limits } from "./sections/Closing";
-import { Demo } from "./sections/Demo";
 import { Hero } from "./sections/Hero";
 import { HowItWorks, Problem, Verdicts } from "./sections/Story";
+import { Report } from "./sections/Report";
+import { mount } from "./mount";
 import "./styles.css";
 
-function Landing() {
+export function Landing() {
   return (
     <>
       <Nav page="landing" />
       <main>
         <Hero />
         <Problem />
-        <Demo />
+        <Report />
         <HowItWorks />
         <Verdicts />
+        <Quality />
         <Benchmarks />
         <EditedClaims />
         <FreshBenchmark />
@@ -30,8 +30,4 @@ function Landing() {
   );
 }
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <Landing />
-  </StrictMode>,
-);
+mount(<Landing />);

@@ -4,7 +4,9 @@ import { useState } from "react";
 import { GlyphField } from "../components/GlyphField";
 import { GithubMark } from "../components/icons";
 import { Roll, Section } from "../components/ui";
-import { GITHUB_URL, PRIMARY_CTA } from "../lib/site";
+import { FRESH_VERIFIED_CITATIONS, FRESH_VERIFIERS } from "../data/benchmarks";
+import { BROKEN, PATHS, SNIPPETS, type SnippetTab } from "../data/install";
+import { CTA, GITHUB_URL } from "../lib/site";
 
 const REASONING = [
   {
@@ -74,38 +76,83 @@ export function Limits() {
   );
 }
 
-const SNIPPETS = {
-  CLI: `pip install "upheld[models]"
+const EXPECTATIONS = [
+  "No API key and no account. Nothing leaves your machine except the requests for the cited pages.",
+  "The first run downloads about 4 GB of models into ~/.cache/huggingface, which takes minutes. After that, loading them takes about half a minute, and each audit takes seconds.",
+  "The default verifier takes 0.3–1 s per claim per source on an Apple M5 Pro, and several times longer on CPU.",
+  "The judge is opt-in. Its install builds llama.cpp, downloads 8.7 GB, and needs about 9 GB of free memory.",
+  "Every report names its verifier and threshold.",
+];
 
-upheld audit answer.md                      # fetches the cited URLs
-upheld audit response.json --from openai    # an OpenAI response, saved as JSON
-upheld audit answer.md --json               # full report`,
-  Python: `import upheld
+function VerifierChooser() {
+  return (
+    <div className="border-t border-line px-5 py-10 sm:px-8 lg:px-12">
+      <p className="label">Choosing a verifier</p>
+      <p className="mt-3 max-w-[70ch] text-sm text-ink-3">
+        Agreement and flags are from the {FRESH_VERIFIED_CITATIONS} labeled 2026 citations, with the verifier alone. Bad means partial or unsupported. See Quality
+        above.
+      </p>
+      <div className="mt-5 overflow-x-auto">
+        <table className="w-full min-w-[56rem] text-left text-sm">
+          <thead className="text-xs text-ink-3">
+            <tr>
+              {["Verifier", "Passages per claim", "Agreement", "Bad citations flagged", "Good citations flagged", "Time per claim", "Memory"].map((h) => (
+                <th key={h} className="py-2 pr-4 font-medium">
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="text-ink-2">
+            {FRESH_VERIFIERS.map((v) => (
+              <tr key={v.verifier} className="border-t border-line align-top">
+                <td className="py-3 pr-4 font-mono text-ink">{v.verifier}</td>
+                <td className="py-3 pr-4 font-mono">{v.passages}</td>
+                <td className="py-3 pr-4 font-mono">{v.agreement}%</td>
+                <td className="py-3 pr-4 font-mono">{v.badFlagged}%</td>
+                <td className="py-3 pr-4 font-mono">{v.goodFlagged}%</td>
+                <td className="py-3 pr-4">{v.time}</td>
+                <td className="py-3 pr-4">{v.memory}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-4 text-sm text-ink">
+        Pick <span className="font-mono">ensemble</span> for speed, <span className="font-mono">ensemble+judge</span> if you'll act on the flags.
+      </p>
+    </div>
+  );
+}
 
-report = upheld.audit(
-    "Semaglutide led to an average weight loss of 14.9% [1].",
-    ["The mean change in body weight was -14.9% ..."],
-)
-for claim in report.claims:
-    print(claim.verdict, claim.text)`,
-  HTTP: `pip install "upheld[models,api]"
-upheld serve        # the API on :8000
-
-curl -s localhost:8000/audit -H 'content-type: application/json' -d '{
-  "answer": "The Eiffel Tower is 384 metres tall [1].",
-  "sources": [{"id": "1", "url": "https://en.wikipedia.org/wiki/Eiffel_Tower"}]
-}'`,
-  MCP: `# once, in a terminal: installs torch and the rest
-uvx --from "upheld[models,mcp]" upheld mcp --help
-
-# then add it to Claude Code (Cursor and Codex: see the docs)
-claude mcp add --scope user upheld -- uvx --from "upheld[models,mcp]" upheld mcp`,
-};
-
-type Tab = keyof typeof SNIPPETS;
+function Broken() {
+  return (
+    <div className="border-t border-line px-5 py-10 sm:px-8 lg:px-12">
+      <p className="label">When it looks broken</p>
+      <div className="mt-5 overflow-x-auto">
+        <table className="w-full min-w-[40rem] text-left text-sm">
+          <thead className="text-xs text-ink-3">
+            <tr>
+              <th className="py-2 pr-6 font-medium">What you see</th>
+              <th className="py-2 font-medium">What's going on</th>
+            </tr>
+          </thead>
+          <tbody>
+            {BROKEN.map(([problem, fix]) => (
+              <tr key={problem} className="border-t border-line align-top">
+                <td className="py-3 pr-6 font-medium text-ink">{problem}</td>
+                <td className="py-3 text-ink-2">{fix}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 
 export function Install() {
-  const [tab, setTab] = useState<Tab>("CLI");
+  const [tab, setTab] = useState<SnippetTab>("CLI");
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try {
@@ -117,6 +164,7 @@ export function Install() {
     }
   };
   const lines = SNIPPETS[tab].split("\n");
+  const path = PATHS.find((p) => p.tab === tab)!;
 
   return (
     <Section id="install">
@@ -124,15 +172,11 @@ export function Install() {
         <div className="px-5 py-16 sm:px-8 md:py-20 lg:px-12">
           <h2 className="display text-4xl leading-[1.02] md:text-[3.25rem]">One engine, four ways in</h2>
           <p className="mt-5 max-w-[44ch] text-lg leading-relaxed text-ink-2">
-            A CLI for spot checks, a Python library for your eval suite, an HTTP API to gate a RAG pipeline, and an MCP server so your agent
-            checks its own citations.
+            A CLI for spot checks, a Python library for your eval suite, an HTTP API to gate a RAG pipeline, and an MCP server so your agent checks its own
+            citations. The first run is the slow one.
           </p>
           <ul className="mt-10 space-y-4 text-ink-2">
-            {[
-              "No API key. Nothing leaves your machine except fetching the cited pages.",
-              "About 4 GB of models on first run. CPU, Apple silicon or NVIDIA.",
-              "Every report names its verifier and threshold.",
-            ].map((t) => (
+            {EXPECTATIONS.map((t) => (
               <li key={t} className="flex gap-3">
                 <span className="mt-[0.4rem] grid size-3.5 shrink-0 place-items-center bg-accent text-on-accent">
                   <CheckIcon size={9} weight="bold" aria-hidden />
@@ -144,7 +188,7 @@ export function Install() {
         </div>
         <div className="flex min-w-0 flex-col bg-cell!">
           <div className="flex items-center border-b border-line">
-            {(Object.keys(SNIPPETS) as Tab[]).map((t) => (
+            {(Object.keys(SNIPPETS) as SnippetTab[]).map((t) => (
               <button
                 key={t}
                 type="button"
@@ -175,6 +219,14 @@ export function Install() {
               {copied ? "Copied" : "Copy"}
             </button>
           </div>
+          <div className="border-b border-line px-5 py-5 sm:px-6">
+            <p className="label text-accent-ink">{path.name}</p>
+            <div className="mt-3 space-y-3 text-sm leading-relaxed text-ink-2">
+              {path.text.map((t) => (
+                <p key={t}>{t}</p>
+              ))}
+            </div>
+          </div>
           <AnimatePresence mode="wait" initial={false}>
             <motion.pre
               key={tab}
@@ -198,6 +250,8 @@ export function Install() {
           </AnimatePresence>
         </div>
       </div>
+      <VerifierChooser />
+      <Broken />
     </Section>
   );
 }
@@ -207,10 +261,10 @@ export function FinalCta() {
     <section className="bg-accent text-on-accent">
       <div className="frame !border-on-accent/25">
         <div className="px-5 pt-20 pb-6 sm:px-8 md:pt-28 lg:px-12">
-          <h2 className="display max-w-[16ch] text-5xl leading-[0.98] md:text-7xl">Paste an answer. See what holds up.</h2>
+          <h2 className="display max-w-[16ch] text-5xl leading-[0.98] md:text-7xl">Check your own answer. See what holds up.</h2>
           <div className="mt-10 flex flex-wrap gap-x-4 gap-y-5">
-            <a href={PRIMARY_CTA.href} className="btn btn-invert">
-              <Roll>{PRIMARY_CTA.label}</Roll>
+            <a href={CTA.href} className="btn btn-invert">
+              <Roll>{CTA.label}</Roll>
               <ArrowRightIcon size={15} weight="bold" className="arrow" aria-hidden />
             </a>
             <a href={GITHUB_URL} className="btn btn-outline-invert">

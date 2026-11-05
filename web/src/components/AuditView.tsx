@@ -1,7 +1,7 @@
 import { ArrowUpRightIcon } from "@phosphor-icons/react";
 import { Fragment, type ReactNode } from "react";
-import type { AuditReport, ClaimResult, SourceReport, Verdict } from "../lib/api";
-import { LINK_STATUS, VERDICTS, VERDICT_ORDER, VerdictLabel } from "../lib/verdicts";
+import type { AuditReport, ClaimResult, SourceReport, Verdict } from "../lib/report";
+import { LINK_STATUS, VERDICTS, VerdictLabel } from "../lib/verdicts";
 
 const MARKER = /\[(\^?\d+(?:\s*,\s*\^?\d+)*)\]|\[([^\]]+)\]\((https?:[^)\s]+)\)/g;
 
@@ -42,13 +42,14 @@ function Markers({ text }: { text: string }) {
   return <>{out}</>;
 }
 
-/** The answer as written, with every claim highlighted by its verdict. */
+/** The answer as written, with every claim highlighted by its verdict. Claims in `dimmed` stay in place, faded. */
 export function AnswerText({
   answer,
   claims,
   active,
   onSelect,
   revealed = Infinity,
+  dimmed,
   className = "",
 }: {
   answer: string;
@@ -56,6 +57,7 @@ export function AnswerText({
   active: number | null;
   onSelect: (index: number) => void;
   revealed?: number;
+  dimmed?: Set<number>;
   className?: string;
 }) {
   const end = referenceListStart(answer);
@@ -74,6 +76,7 @@ export function AnswerText({
         data-verdict={state}
         data-active={active === c.index}
         className={`claim ${i === revealed ? "claim-scan" : ""}`}
+        style={dimmed?.has(c.index) ? { opacity: 0.35 } : undefined}
         onClick={() => onSelect(c.index)}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
@@ -155,14 +158,14 @@ function trimPassage(text: string, max = 300) {
 }
 
 /** Everything upheld found for one claim: verdict, flagged words, score and evidence per citation. */
-export function ClaimDetail({ claim, report, compact = false }: { claim: ClaimResult; report: AuditReport; compact?: boolean }) {
+export function ClaimDetail({ claim, report }: { claim: ClaimResult; report: AuditReport }) {
   const threshold = thresholdOf(report.verifier);
   const byId = new Map(report.sources.map((s) => [s.id, s]));
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <VerdictLabel verdict={claim.verdict} />
-        {!compact && <span className="text-sm text-ink-3">{VERDICTS[claim.verdict].short}</span>}
+        <span className="text-sm text-ink-3">{VERDICTS[claim.verdict].short}</span>
       </div>
       <p className="text-[0.95rem] leading-relaxed text-ink">
         <ClaimWithSpans claim={claim} />
@@ -185,8 +188,13 @@ export function ClaimDetail({ claim, report, compact = false }: { claim: ClaimRe
               ) : (
                 <span className="text-ink-2">{sourceLabel(src, check.source_id)}</span>
               )}
-              {src && <span className={`ml-auto text-xs font-medium ${LINK_STATUS[src.status].tone}`}>{LINK_STATUS[src.status].label}</span>}
             </div>
+            {src && (
+              <p className={`font-mono text-xs ${LINK_STATUS[src.status].tone}`}>
+                {src.status}
+                {src.note && ` · ${src.note}`}
+              </p>
+            )}
             {check.support_score !== null && check.verdict !== "source_missing" && (
               <ScoreScale score={check.support_score} threshold={threshold} />
             )}
@@ -201,17 +209,13 @@ export function ClaimDetail({ claim, report, compact = false }: { claim: ClaimRe
                 ))}
               </p>
             )}
-            {check.verdict === "source_missing" && src?.note && (
-              <p className="text-sm text-ink-2">
-                {src.status === "likely_fabricated"
-                  ? `The page returns ${src.http_status ?? "an error"} and the Wayback Machine has no copy of it, so it probably never existed.`
-                  : src.note}
-              </p>
-            )}
             {best && (
               <blockquote className="border-l-2 border-line-strong bg-bg px-4 py-3 text-sm leading-relaxed text-ink-2">
-                <span className="mb-1 block text-xs font-medium text-ink-3">Closest passage in the source</span>
-                {trimPassage(best.passage, compact ? 150 : 300)}
+                <span className="mb-1 flex items-baseline justify-between gap-3 text-xs font-medium text-ink-3">
+                  <span>Closest passage in the source</span>
+                  <span className="font-mono">score {best.score.toFixed(2)}</span>
+                </span>
+                {trimPassage(best.passage)}
               </blockquote>
             )}
             {check.note && (
@@ -244,25 +248,6 @@ export function SourceRows({ sources }: { sources: SourceReport[] }) {
           <span className={`shrink-0 text-xs font-medium ${LINK_STATUS[s.status].tone}`}>{LINK_STATUS[s.status].label}</span>
         </li>
       ))}
-    </ul>
-  );
-}
-
-export function VerdictCounts({ report, className = "" }: { report: AuditReport; className?: string }) {
-  const counts = report.summary.claim_verdicts;
-  return (
-    <ul className={`flex flex-wrap gap-x-4 gap-y-2 text-sm ${className}`}>
-      {VERDICT_ORDER.filter((v) => counts[v]).map((v) => {
-        const meta = VERDICTS[v];
-        const Glyph = meta.icon;
-        return (
-          <li key={v} className="inline-flex items-center gap-1.5">
-            <Glyph size={15} weight="bold" className={meta.tone} aria-hidden />
-            <span className="font-mono text-ink">{counts[v]}</span>
-            <span className="text-ink-2">{meta.label.toLowerCase()}</span>
-          </li>
-        );
-      })}
     </ul>
   );
 }

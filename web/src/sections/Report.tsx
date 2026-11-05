@@ -1,13 +1,14 @@
 import { animate, AnimatePresence, motion, useInView, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
-import { AnswerText, ClaimDetail, SourceRows } from "../components/AuditView";
-import { LinkButton, Section } from "../components/ui";
+import { AnswerText, ClaimDetail, SourceRows, thresholdOf } from "../components/AuditView";
+import { Section } from "../components/ui";
+import glp1Json from "../data/examples/glp1.json";
 import towerJson from "../data/examples/tower.json";
-import type { ClaimResult, Example } from "../lib/api";
-import { DOCS_URL, HAS_PLAYGROUND, PLAYGROUND_URL } from "../lib/site";
+import type { ClaimResult, Example, Verdict } from "../lib/report";
 import { VERDICTS } from "../lib/verdicts";
 
-const tower = towerJson as Example;
+// Both are real `upheld audit --json` reports. TODO(owner): a third real example, from evals/fresh (a Perplexity-style answer with [n] markers).
+const EXAMPLES: Example[] = [towerJson as Example, glp1Json as Example];
 const STEP_MS = 1050;
 
 const DOT: Record<ClaimResult["verdict"], string> = {
@@ -18,6 +19,15 @@ const DOT: Record<ClaimResult["verdict"], string> = {
   unverifiable: "bg-ink-3",
   uncited: "bg-ink-3",
 };
+
+type Filter = "all" | "supported" | "flagged" | "unreadable";
+
+const FILTERS: { id: Filter; label: string; match: (v: Verdict) => boolean }[] = [
+  { id: "all", label: "All", match: () => true },
+  { id: "supported", label: "Supported", match: (v) => v === "supported" },
+  { id: "flagged", label: "Flagged", match: (v) => v === "unsupported" || v === "wrong_entity" || v === "source_missing" },
+  { id: "unreadable", label: "Can't read", match: (v) => v === "unverifiable" },
+];
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -149,9 +159,13 @@ function Scrubber({
   );
 }
 
-export function Demo() {
+export function Report() {
   const reduce = useReducedMotion();
-  const claims = tower.report.claims;
+  const [tab, setTab] = useState(0);
+  const [filter, setFilter] = useState<Filter>("all");
+  const example = EXAMPLES[tab];
+  const report = example.report;
+  const claims = report.claims;
   const n = claims.length;
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { amount: 0.4 });
@@ -176,57 +190,112 @@ export function Demo() {
     setPos(v);
   };
 
+  const pick = (i: number) => {
+    setTab(i);
+    setFilter("all");
+    take(1);
+  };
+
+  const current = FILTERS.find((f) => f.id === filter)!;
+  const counts = FILTERS.map((f) => claims.filter((c) => f.match(c.verdict)).length);
+  const dimmed = new Set(claims.filter((c) => !current.match(c.verdict)).map((c) => c.index));
+  const uncited = claims.filter((c) => c.verdict === "uncited").length;
+
   const revealed = done ? n : pos;
   const active = pos > 0 ? claims[pos - 1] : null;
 
   return (
-    <Section id="demo">
-      <div className="grid grid-cols-1 gap-6 px-5 py-16 sm:px-8 md:py-20 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end lg:px-12">
+    <Section id="report">
+      <div className="grid grid-cols-1 gap-6 px-5 py-16 sm:px-8 md:py-20 lg:px-12">
         <div>
           <h2 className="display text-4xl leading-[1.02] md:text-[3.25rem]">Watch it read the sources</h2>
           <p className="mt-5 max-w-[56ch] text-lg leading-relaxed text-ink-2">
-            A real report, not a mockup. upheld audited this answer against live Wikipedia. Drag the slider to step through its six claims.
+            These are real <code className="font-mono text-[0.85em] text-ink">upheld audit --json</code> reports, not mockups. Drag the slider or use the arrow
+            keys to step through each claim: its verdict, the passage it was checked against, and the source's status.
           </p>
         </div>
-        <LinkButton href={HAS_PLAYGROUND ? PLAYGROUND_URL : `${DOCS_URL}#audit-an-answer`} variant="ghost" arrow className="justify-self-start">
-          {HAS_PLAYGROUND ? "Try your own answer" : "Run it on your own answer"}
-        </LinkButton>
       </div>
 
       <div ref={ref} className="border-t border-line">
+        <div role="tablist" aria-label="Example answers" className="flex items-center border-b border-line">
+          {EXAMPLES.map((ex, i) => (
+            <button
+              key={ex.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === i}
+              onClick={() => pick(i)}
+              className={`relative h-12 border-r border-line px-4 text-sm transition-colors sm:px-5 ${tab === i ? "text-ink" : "text-ink-3 hover:text-ink"}`}
+            >
+              {tab === i && (
+                <motion.span layoutId="report-tab" className="absolute inset-x-0 -bottom-px h-0.5 bg-accent" transition={{ type: "spring", stiffness: 460, damping: 36 }} />
+              )}
+              {ex.title}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-col gap-2 border-b border-line px-5 py-4 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6 sm:px-8 lg:px-10">
+          <p className="text-ink-2">{example.caption}</p>
+          <p className="shrink-0 font-mono text-xs text-ink-3">verifier {report.verifier}</p>
+        </div>
+
         <div className="ruled grid-cols-1 lg:grid-cols-[minmax(0,1.12fr)_minmax(0,1fr)]">
           <div className="px-5 py-7 sm:px-8 lg:px-10 lg:py-9">
             <p className="label">Question</p>
-            <p className="mt-2 text-ink-2">{tower.question}</p>
-            <p className="label mt-7">Answer</p>
+            <p className="mt-2 text-ink-2">{example.question}</p>
+            <div className="mt-7 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+              <p className="label">Answer</p>
+              <div role="group" aria-label="Filter claims by verdict" className="flex flex-wrap gap-2">
+                {FILTERS.map((f, i) => {
+                  const on = filter === f.id;
+                  return (
+                    <button
+                      key={f.id}
+                      type="button"
+                      aria-pressed={on}
+                      disabled={counts[i] === 0}
+                      onClick={() => setFilter(f.id)}
+                      className={`inline-flex h-8 items-center gap-2 px-3 text-sm transition-colors disabled:opacity-40 ${
+                        on ? "bg-ink text-bg" : "text-ink-2 shadow-[inset_0_0_0_1px_var(--line-strong)] hover:text-ink"
+                      }`}
+                    >
+                      {f.label}
+                      <span className="font-mono text-xs">{counts[i]}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             <AnswerText
-              answer={tower.answer}
+              answer={example.answer}
               claims={claims}
               active={active?.index ?? null}
               onSelect={(i) => take(i + 1)}
               revealed={revealed}
-              className="mt-2 text-[1.06rem] leading-[1.95] text-ink sm:text-[1.12rem]"
+              dimmed={dimmed}
+              className="mt-3 text-[1.06rem] leading-[1.95] text-ink sm:text-[1.12rem]"
             />
+            {uncited > 0 && <p className="mt-3 text-xs text-ink-3">{uncited} uncited {uncited === 1 ? "claim is" : "claims are"} shown under All only.</p>}
             <div className="mt-7 border-t border-line pt-4">
-              <SourceRows sources={tower.report.sources} />
+              <SourceRows sources={report.sources} />
             </div>
           </div>
           <div className="relative min-h-[24rem] bg-cell px-5 py-7 sm:px-8 lg:px-10 lg:py-9">
             <p className="label flex items-center justify-between">
               <span>Claim detail</span>
-              <span className="text-ink-3">{tower.report.verifier.split(":")[0]} · threshold 0.50</span>
+              <span className="text-ink-3">threshold {thresholdOf(report.verifier).toFixed(2)}</span>
             </p>
             <div className="mt-5">
               <AnimatePresence mode="wait" initial={false}>
                 {active ? (
                   <motion.div
-                    key={active.index}
+                    key={`${tab}-${active.index}`}
                     initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
                     animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                     exit={{ opacity: 0, y: -8, filter: "blur(4px)" }}
                     transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
                   >
-                    <ClaimDetail claim={active} report={tower.report} />
+                    <ClaimDetail claim={active} report={report} />
                   </motion.div>
                 ) : (
                   <motion.div key="idle" exit={{ opacity: 0 }} className="space-y-3" aria-hidden>
@@ -265,6 +334,13 @@ export function Demo() {
             </p>
           </div>
         </div>
+
+        <p className="border-t border-line px-5 py-5 text-sm text-ink-2 sm:px-8 lg:px-10">
+          This output came from <code className="font-mono text-[0.85em] text-ink">upheld audit --json</code>.{" "}
+          <a href="#install" className="text-ink underline decoration-line-strong underline-offset-4 hover:decoration-accent">
+            Run the same on your own answer →
+          </a>
+        </p>
       </div>
     </Section>
   );

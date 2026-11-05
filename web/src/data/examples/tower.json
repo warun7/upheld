@@ -1,249 +1,250 @@
 {
- "id": "tower",
- "title": "Eiffel Tower",
- "blurb": "A chatbot-style answer citing two Wikipedia URLs. One of them doesn't exist.",
- "question": "Tell me about the Eiffel Tower.",
- "answer": "The Eiffel Tower was designed by the engineering company of Gustave Eiffel and completed in 1889 [1]. It stands 384 metres tall [1]. It was the tallest man-made structure in the world until the Chrysler Building in New York was finished in 1930 [1]. Its design was led by the architect Frank Lloyd Wright [1]. The tower is repainted every three years using a special bronze paint [2]. It is the most visited paid monument in the world.\n\nSources:\n[1] https://en.wikipedia.org/wiki/Eiffel_Tower\n[2] https://en.wikipedia.org/wiki/Eiffel_Tower_repainting_schedule",
- "sources": [],
- "report": {
-  "verifier": "ensemble:minicheck+lexical+lettuce@0.5",
-  "retrieval": "hybrid:bm25+bge-small-en-v1.5",
-  "summary": {
-   "claims": 6,
-   "cited_claims": 5,
-   "supported_claims": 2,
-   "citations_checked": 5,
-   "citation_verdicts": {
-    "supported": 2,
-    "unsupported": 2,
-    "source_missing": 1
-   },
-   "claim_verdicts": {
-    "supported": 2,
-    "unsupported": 2,
-    "source_missing": 1,
-    "uncited": 1
-   }
-  },
-  "claims": [
-   {
-    "index": 0,
-    "text": "The Eiffel Tower was designed by the engineering company of Gustave Eiffel and completed in 1889.",
-    "start": 0,
-    "end": 101,
-    "cited": [
-     "1"
-    ],
-    "verdict": "supported",
-    "checks": [
-     {
-      "source_id": "1",
-      "verdict": "supported",
-      "support_score": 0.826,
-      "unsupported_spans": [],
-      "missing_entities": [],
-      "evidence": [
-       {
-        "source_id": "1",
-        "passage": "Website | | | toureiffel.paris | | | Official name | Tour Eiffel | | Type | Classé | | Designated | 1964 | | References | | | I. ^\"Eiffel Tower\". Emporis. Archived from the original on 22 April 2016. | | | Part of | Paris, Banks of the Seine | | Criteria | Cultural: i, ii, iv | | Reference | 600 | | Inscription | 1991 (15th Session) | The Eiffel Tower (/ˈaɪfəl/ ⓘ EYE-fəl; French: Tour Eiffel [tuʁ ɛfɛl] ⓘ) is a lattice tower on the Champ de Mars in Paris, France. It is named after the engineer Gustave Eiffel, whose company designed and built the tower from 1887 to 1889.",
-        "score": 1.0
-       },
-       {
-        "source_id": "1",
-        "passage": "a lattice tower on the Champ de Mars in Paris, France. It is named after the engineer Gustave Eiffel, whose company designed and built the tower from 1887 to 1889. Locally nicknamed \"La dame de fer\" (French for \"Iron Lady\") for its use of wrought iron, it was constructed as the centrepiece of the 1889 World's Fair, and to crown the centennial anniversary of the French Revolution.",
-        "score": 0.985
-       },
-       {
-        "source_id": "1",
-        "passage": "lift. On this top, third level, is a private apartment built for Gustave Eiffel, who decorated it with furniture made by Jean Lachaise and invited friends such as Thomas Edison. History Origin The design of the Eiffel Tower is attributed to Maurice Koechlin and Émile Nouguier, two senior engineers working for the Compagnie des Établissements Eiffel. It was envisaged after discussion about a suitable centrepiece for the proposed 1889 Exposition Universelle, a world's fair to celebrate the centennial of the French Revolution.",
-        "score": 0.985
-       }
-      ],
-      "note": null
-     }
-    ],
-    "note": null
-   },
-   {
-    "index": 1,
-    "text": "It stands 384 metres tall.",
-    "start": 102,
-    "end": 132,
-    "cited": [
-     "1"
-    ],
-    "verdict": "unsupported",
-    "checks": [
-     {
-      "source_id": "1",
-      "verdict": "unsupported",
-      "support_score": 0.238,
-      "unsupported_spans": [
-       {
-        "start": 3,
-        "end": 25,
-        "text": "stands 384 metres tall",
-        "confidence": 0.763
-       }
-      ],
-      "missing_entities": [],
-      "evidence": [
-       {
-        "source_id": "1",
-        "passage": "metres (1,083 ft) tall,[9] about the same height as an 81-storey building, and the tallest structure in Paris. Its base is square, measuring 125 metres (410 ft) on each side. During its construction, the Eiffel Tower surpassed the Washington Monument to become by far the tallest human-made structure in the world, a title it held for 41 years until the Chrysler Building in New York City was finished in 1930. It was the first structure in the world to surpass both the 200-metre and 300-metre mark in height. Due to the addition of a broadcasting aerial at the top of the tower in 1957, it is now taller than the Chrysler Building by 11 metres (36 ft).",
-        "score": 1.0
-       },
-       {
-        "source_id": "1",
-        "passage": "height. Due to the addition of a broadcasting aerial at the top of the tower in 1957, it is now taller than the Chrysler Building by 11 metres (36 ft). Excluding transmitters, the Eiffel Tower is the second tallest free-standing structure in France after the Millau Viaduct. The tower has three levels for visitors, with restaurants on the first and second levels. The top level's upper platform is 276 m (906 ft) above the ground—the highest public observation deck in the European Union. Tickets can be purchased to ascend by stairs or lift to the first and second levels.",
-        "score": 0.968
-       },
-       {
-        "source_id": "1",
-        "passage": "world.[5] The tower received 5,889,000 visitors in 2022.[6] The Eiffel Tower is the most visited monument with an entrance fee in the world:[7] 6.91 million people ascended it in 2015. It was designated a monument historique in 1964, and was named part of a UNESCO World Heritage Site (\"Paris, Banks of the Seine\") in 1991.[8] The tower is 330 metres (1,083 ft) tall,[9] about the same height as an 81-storey building, and the tallest structure in Paris. Its base is square, measuring 125 metres (410 ft) on each side.",
-        "score": 0.947
-       }
-      ],
-      "note": null
-     }
-    ],
-    "note": null
-   },
-   {
-    "index": 2,
-    "text": "It was the tallest man-made structure in the world until the Chrysler Building in New York was finished in 1930.",
-    "start": 133,
-    "end": 249,
-    "cited": [
-     "1"
-    ],
-    "verdict": "supported",
-    "checks": [
-     {
-      "source_id": "1",
-      "verdict": "supported",
-      "support_score": 0.836,
-      "unsupported_spans": [],
-      "missing_entities": [],
-      "evidence": [
-       {
-        "source_id": "1",
-        "passage": "metres (1,083 ft) tall,[9] about the same height as an 81-storey building, and the tallest structure in Paris. Its base is square, measuring 125 metres (410 ft) on each side. During its construction, the Eiffel Tower surpassed the Washington Monument to become by far the tallest human-made structure in the world, a title it held for 41 years until the Chrysler Building in New York City was finished in 1930. It was the first structure in the world to surpass both the 200-metre and 300-metre mark in height. Due to the addition of a broadcasting aerial at the top of the tower in 1957, it is now taller than the Chrysler Building by 11 metres (36 ft).",
-        "score": 1.0
-       },
-       {
-        "source_id": "1",
-        "passage": "| 1956 | 312.27 | 1,025 | Flagpole | Architectural height of 300 m (980 ft) Tallest freestanding structure in the world until surpassed by the Chrysler Building in 1930. Tallest tower in the world until surpassed by the KCTV Broadcast Tower in 1956. | | 1957 | 1991 | 320.75 | 1,052 | Antenna | Broadcast antenna added in 1957 which made it the tallest tower in the world until the Tokyo Tower was completed the following year in 1958.",
-        "score": 0.984
-       },
-       {
-        "source_id": "1",
-        "passage": "| 1,052 | Antenna | Broadcast antenna added in 1957 which made it the tallest tower in the world until the Tokyo Tower was completed the following year in 1958. | | 1991 | 1994 | 317.96 | 1,043 | Antenna change | | | 1994 | 2000 | 318.7 | 1,046 | | | | 2000 | 2022 | 324 | 1,063 | | | | 2022 | Current | 330 | 1,083 | | Digital radio antenna hoisted on March 15, 2022.[111] | Taller structures The Eiffel Tower was the world's tallest structure when completed in 1889, a distinction it retained until 1929 when the Chrysler Building in New York City was topped out.[112] The tower also lost its standing as the world's tallest tower to the Tokyo Tower in 1958 but retains its status as the tallest freestanding (non-guyed) structure in France.",
-        "score": 0.961
-       }
-      ],
-      "note": null
-     }
-    ],
-    "note": null
-   },
-   {
-    "index": 3,
-    "text": "Its design was led by the architect Frank Lloyd Wright.",
-    "start": 250,
-    "end": 309,
-    "cited": [
-     "1"
-    ],
-    "verdict": "unsupported",
-    "checks": [
-     {
-      "source_id": "1",
-      "verdict": "unsupported",
-      "support_score": 0.268,
-      "unsupported_spans": [
-       {
+  "id": "tower",
+  "title": "Eiffel Tower",
+  "blurb": "A chatbot-style answer citing two Wikipedia URLs. One of them doesn't exist.",
+  "caption": "An answer written with planted errors: a wrong height, an architect the page never mentions, and a link that 404s and was never archived.",
+  "question": "Tell me about the Eiffel Tower.",
+  "answer": "The Eiffel Tower was designed by the engineering company of Gustave Eiffel and completed in 1889 [1]. It stands 384 metres tall [1]. It was the tallest man-made structure in the world until the Chrysler Building in New York was finished in 1930 [1]. Its design was led by the architect Frank Lloyd Wright [1]. The tower is repainted every three years using a special bronze paint [2]. It is the most visited paid monument in the world.\n\nSources:\n[1] https://en.wikipedia.org/wiki/Eiffel_Tower\n[2] https://en.wikipedia.org/wiki/Eiffel_Tower_repainting_schedule",
+  "sources": [],
+  "report": {
+    "verifier": "ensemble:minicheck+lexical+lettuce@0.5",
+    "retrieval": "hybrid:bm25+bge-small-en-v1.5",
+    "summary": {
+      "claims": 6,
+      "cited_claims": 5,
+      "supported_claims": 2,
+      "citations_checked": 5,
+      "citation_verdicts": {
+        "supported": 2,
+        "unsupported": 2,
+        "source_missing": 1
+      },
+      "claim_verdicts": {
+        "supported": 2,
+        "unsupported": 2,
+        "source_missing": 1,
+        "uncited": 1
+      }
+    },
+    "claims": [
+      {
+        "index": 0,
+        "text": "The Eiffel Tower was designed by the engineering company of Gustave Eiffel and completed in 1889.",
         "start": 0,
-        "end": 54,
-        "text": "Its design was led by the architect Frank Lloyd Wright",
-        "confidence": 0.996
-       }
-      ],
-      "missing_entities": [
-       "Frank Lloyd Wright"
-      ],
-      "evidence": [
-       {
-        "source_id": "1",
-        "passage": "200 m for that matter,[14] and many people believed it was impossible. These objections were an expression of a long-standing debate in France about the relationship between architecture and engineering. It came to a head as work began at the Champ de Mars: a \"Committee of Three Hundred\" (one member for each metre of the tower's height) was formed, led by the prominent architect Charles Garnier and including some of the most important figures of the arts, such as William-Adolphe Bouguereau, Guy de Maupassant, Charles Gounod and Jules Massenet.",
-        "score": 1.0
-       },
-       {
-        "source_id": "1",
-        "passage": "initially showed little enthusiasm, but he did approve further study, and the two engineers then asked Stephen Sauvestre, the head of the company's architectural department, to contribute to the design. Sauvestre added decorative arches to the base of the tower, a glass pavilion to the first level, and other embellishments.[citation needed] The new version gained Eiffel's support: he bought the rights to the patent on the design which Koechlin, Nouguier, and Sauvestre had taken out, and the design was put on display at the Exhibition of Decorative Arts in the autumn of 1884 under the company name.",
-        "score": 0.97
-       },
-       {
-        "source_id": "1",
-        "passage": "lift. On this top, third level, is a private apartment built for Gustave Eiffel, who decorated it with furniture made by Jean Lachaise and invited friends such as Thomas Edison. History Origin The design of the Eiffel Tower is attributed to Maurice Koechlin and Émile Nouguier, two senior engineers working for the Compagnie des Établissements Eiffel. It was envisaged after discussion about a suitable centrepiece for the proposed 1889 Exposition Universelle, a world's fair to celebrate the centennial of the French Revolution.",
-        "score": 0.965
-       }
-      ],
-      "note": null
-     }
+        "end": 101,
+        "cited": [
+          "1"
+        ],
+        "verdict": "supported",
+        "checks": [
+          {
+            "source_id": "1",
+            "verdict": "supported",
+            "support_score": 0.826,
+            "unsupported_spans": [],
+            "missing_entities": [],
+            "evidence": [
+              {
+                "source_id": "1",
+                "passage": "Website | | | toureiffel.paris | | | Official name | Tour Eiffel | | Type | Classé | | Designated | 1964 | | References | | | I. ^\"Eiffel Tower\". Emporis. Archived from the original on 22 April 2016. | | | Part of | Paris, Banks of the Seine | | Criteria | Cultural: i, ii, iv | | Reference | 600 | | Inscription | 1991 (15th Session) | The Eiffel Tower (/ˈaɪfəl/ ⓘ EYE-fəl; French: Tour Eiffel [tuʁ ɛfɛl] ⓘ) is a lattice tower on the Champ de Mars in Paris, France. It is named after the engineer Gustave Eiffel, whose company designed and built the tower from 1887 to 1889.",
+                "score": 1.0
+              },
+              {
+                "source_id": "1",
+                "passage": "a lattice tower on the Champ de Mars in Paris, France. It is named after the engineer Gustave Eiffel, whose company designed and built the tower from 1887 to 1889. Locally nicknamed \"La dame de fer\" (French for \"Iron Lady\") for its use of wrought iron, it was constructed as the centrepiece of the 1889 World's Fair, and to crown the centennial anniversary of the French Revolution.",
+                "score": 0.985
+              },
+              {
+                "source_id": "1",
+                "passage": "lift. On this top, third level, is a private apartment built for Gustave Eiffel, who decorated it with furniture made by Jean Lachaise and invited friends such as Thomas Edison. History Origin The design of the Eiffel Tower is attributed to Maurice Koechlin and Émile Nouguier, two senior engineers working for the Compagnie des Établissements Eiffel. It was envisaged after discussion about a suitable centrepiece for the proposed 1889 Exposition Universelle, a world's fair to celebrate the centennial of the French Revolution.",
+                "score": 0.985
+              }
+            ],
+            "note": null
+          }
+        ],
+        "note": null
+      },
+      {
+        "index": 1,
+        "text": "It stands 384 metres tall.",
+        "start": 102,
+        "end": 132,
+        "cited": [
+          "1"
+        ],
+        "verdict": "unsupported",
+        "checks": [
+          {
+            "source_id": "1",
+            "verdict": "unsupported",
+            "support_score": 0.238,
+            "unsupported_spans": [
+              {
+                "start": 3,
+                "end": 25,
+                "text": "stands 384 metres tall",
+                "confidence": 0.763
+              }
+            ],
+            "missing_entities": [],
+            "evidence": [
+              {
+                "source_id": "1",
+                "passage": "metres (1,083 ft) tall,[9] about the same height as an 81-storey building, and the tallest structure in Paris. Its base is square, measuring 125 metres (410 ft) on each side. During its construction, the Eiffel Tower surpassed the Washington Monument to become by far the tallest human-made structure in the world, a title it held for 41 years until the Chrysler Building in New York City was finished in 1930. It was the first structure in the world to surpass both the 200-metre and 300-metre mark in height. Due to the addition of a broadcasting aerial at the top of the tower in 1957, it is now taller than the Chrysler Building by 11 metres (36 ft).",
+                "score": 1.0
+              },
+              {
+                "source_id": "1",
+                "passage": "height. Due to the addition of a broadcasting aerial at the top of the tower in 1957, it is now taller than the Chrysler Building by 11 metres (36 ft). Excluding transmitters, the Eiffel Tower is the second tallest free-standing structure in France after the Millau Viaduct. The tower has three levels for visitors, with restaurants on the first and second levels. The top level's upper platform is 276 m (906 ft) above the ground—the highest public observation deck in the European Union. Tickets can be purchased to ascend by stairs or lift to the first and second levels.",
+                "score": 0.968
+              },
+              {
+                "source_id": "1",
+                "passage": "world.[5] The tower received 5,889,000 visitors in 2022.[6] The Eiffel Tower is the most visited monument with an entrance fee in the world:[7] 6.91 million people ascended it in 2015. It was designated a monument historique in 1964, and was named part of a UNESCO World Heritage Site (\"Paris, Banks of the Seine\") in 1991.[8] The tower is 330 metres (1,083 ft) tall,[9] about the same height as an 81-storey building, and the tallest structure in Paris. Its base is square, measuring 125 metres (410 ft) on each side.",
+                "score": 0.947
+              }
+            ],
+            "note": null
+          }
+        ],
+        "note": null
+      },
+      {
+        "index": 2,
+        "text": "It was the tallest man-made structure in the world until the Chrysler Building in New York was finished in 1930.",
+        "start": 133,
+        "end": 249,
+        "cited": [
+          "1"
+        ],
+        "verdict": "supported",
+        "checks": [
+          {
+            "source_id": "1",
+            "verdict": "supported",
+            "support_score": 0.836,
+            "unsupported_spans": [],
+            "missing_entities": [],
+            "evidence": [
+              {
+                "source_id": "1",
+                "passage": "metres (1,083 ft) tall,[9] about the same height as an 81-storey building, and the tallest structure in Paris. Its base is square, measuring 125 metres (410 ft) on each side. During its construction, the Eiffel Tower surpassed the Washington Monument to become by far the tallest human-made structure in the world, a title it held for 41 years until the Chrysler Building in New York City was finished in 1930. It was the first structure in the world to surpass both the 200-metre and 300-metre mark in height. Due to the addition of a broadcasting aerial at the top of the tower in 1957, it is now taller than the Chrysler Building by 11 metres (36 ft).",
+                "score": 1.0
+              },
+              {
+                "source_id": "1",
+                "passage": "| 1956 | 312.27 | 1,025 | Flagpole | Architectural height of 300 m (980 ft) Tallest freestanding structure in the world until surpassed by the Chrysler Building in 1930. Tallest tower in the world until surpassed by the KCTV Broadcast Tower in 1956. | | 1957 | 1991 | 320.75 | 1,052 | Antenna | Broadcast antenna added in 1957 which made it the tallest tower in the world until the Tokyo Tower was completed the following year in 1958.",
+                "score": 0.984
+              },
+              {
+                "source_id": "1",
+                "passage": "| 1,052 | Antenna | Broadcast antenna added in 1957 which made it the tallest tower in the world until the Tokyo Tower was completed the following year in 1958. | | 1991 | 1994 | 317.96 | 1,043 | Antenna change | | | 1994 | 2000 | 318.7 | 1,046 | | | | 2000 | 2022 | 324 | 1,063 | | | | 2022 | Current | 330 | 1,083 | | Digital radio antenna hoisted on March 15, 2022.[111] | Taller structures The Eiffel Tower was the world's tallest structure when completed in 1889, a distinction it retained until 1929 when the Chrysler Building in New York City was topped out.[112] The tower also lost its standing as the world's tallest tower to the Tokyo Tower in 1958 but retains its status as the tallest freestanding (non-guyed) structure in France.",
+                "score": 0.961
+              }
+            ],
+            "note": null
+          }
+        ],
+        "note": null
+      },
+      {
+        "index": 3,
+        "text": "Its design was led by the architect Frank Lloyd Wright.",
+        "start": 250,
+        "end": 309,
+        "cited": [
+          "1"
+        ],
+        "verdict": "unsupported",
+        "checks": [
+          {
+            "source_id": "1",
+            "verdict": "unsupported",
+            "support_score": 0.268,
+            "unsupported_spans": [
+              {
+                "start": 0,
+                "end": 54,
+                "text": "Its design was led by the architect Frank Lloyd Wright",
+                "confidence": 0.996
+              }
+            ],
+            "missing_entities": [
+              "Frank Lloyd Wright"
+            ],
+            "evidence": [
+              {
+                "source_id": "1",
+                "passage": "200 m for that matter,[14] and many people believed it was impossible. These objections were an expression of a long-standing debate in France about the relationship between architecture and engineering. It came to a head as work began at the Champ de Mars: a \"Committee of Three Hundred\" (one member for each metre of the tower's height) was formed, led by the prominent architect Charles Garnier and including some of the most important figures of the arts, such as William-Adolphe Bouguereau, Guy de Maupassant, Charles Gounod and Jules Massenet.",
+                "score": 1.0
+              },
+              {
+                "source_id": "1",
+                "passage": "initially showed little enthusiasm, but he did approve further study, and the two engineers then asked Stephen Sauvestre, the head of the company's architectural department, to contribute to the design. Sauvestre added decorative arches to the base of the tower, a glass pavilion to the first level, and other embellishments.[citation needed] The new version gained Eiffel's support: he bought the rights to the patent on the design which Koechlin, Nouguier, and Sauvestre had taken out, and the design was put on display at the Exhibition of Decorative Arts in the autumn of 1884 under the company name.",
+                "score": 0.97
+              },
+              {
+                "source_id": "1",
+                "passage": "lift. On this top, third level, is a private apartment built for Gustave Eiffel, who decorated it with furniture made by Jean Lachaise and invited friends such as Thomas Edison. History Origin The design of the Eiffel Tower is attributed to Maurice Koechlin and Émile Nouguier, two senior engineers working for the Compagnie des Établissements Eiffel. It was envisaged after discussion about a suitable centrepiece for the proposed 1889 Exposition Universelle, a world's fair to celebrate the centennial of the French Revolution.",
+                "score": 0.965
+              }
+            ],
+            "note": null
+          }
+        ],
+        "note": null
+      },
+      {
+        "index": 4,
+        "text": "The tower is repainted every three years using a special bronze paint.",
+        "start": 310,
+        "end": 384,
+        "cited": [
+          "2"
+        ],
+        "verdict": "source_missing",
+        "checks": [
+          {
+            "source_id": "2",
+            "verdict": "source_missing",
+            "support_score": null,
+            "unsupported_spans": [],
+            "missing_entities": [],
+            "evidence": [],
+            "note": "HTTP 404; never archived"
+          }
+        ],
+        "note": null
+      },
+      {
+        "index": 5,
+        "text": "It is the most visited paid monument in the world.",
+        "start": 385,
+        "end": 435,
+        "cited": [],
+        "verdict": "uncited",
+        "checks": [],
+        "note": null
+      }
     ],
-    "note": null
-   },
-   {
-    "index": 4,
-    "text": "The tower is repainted every three years using a special bronze paint.",
-    "start": 310,
-    "end": 384,
-    "cited": [
-     "2"
-    ],
-    "verdict": "source_missing",
-    "checks": [
-     {
-      "source_id": "2",
-      "verdict": "source_missing",
-      "support_score": null,
-      "unsupported_spans": [],
-      "missing_entities": [],
-      "evidence": [],
-      "note": "HTTP 404; never archived"
-     }
-    ],
-    "note": null
-   },
-   {
-    "index": 5,
-    "text": "It is the most visited paid monument in the world.",
-    "start": 385,
-    "end": 435,
-    "cited": [],
-    "verdict": "uncited",
-    "checks": [],
-    "note": null
-   }
-  ],
-  "sources": [
-   {
-    "id": "1",
-    "url": "https://en.wikipedia.org/wiki/Eiffel_Tower",
-    "status": "live",
-    "http_status": 200,
-    "chars": 65753,
-    "note": null
-   },
-   {
-    "id": "2",
-    "url": "https://en.wikipedia.org/wiki/Eiffel_Tower_repainting_schedule",
-    "status": "likely_fabricated",
-    "http_status": 404,
-    "chars": 0,
-    "note": "HTTP 404; never archived"
-   }
-  ]
- }
+    "sources": [
+      {
+        "id": "1",
+        "url": "https://en.wikipedia.org/wiki/Eiffel_Tower",
+        "status": "live",
+        "http_status": 200,
+        "chars": 65753,
+        "note": null
+      },
+      {
+        "id": "2",
+        "url": "https://en.wikipedia.org/wiki/Eiffel_Tower_repainting_schedule",
+        "status": "likely_fabricated",
+        "http_status": 404,
+        "chars": 0,
+        "note": "HTTP 404; never archived"
+      }
+    ]
+  }
 }

@@ -7,7 +7,7 @@ import {
   XCircleIcon,
   type Icon,
 } from "@phosphor-icons/react";
-import type { LinkStatus, Verdict } from "./api";
+import type { LinkStatus, Verdict } from "./report";
 
 export const VERDICTS: Record<Verdict, { label: string; short: string; icon: Icon; tone: string }> = {
   supported: {

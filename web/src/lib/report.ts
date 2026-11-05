@@ -80,45 +80,9 @@ export interface Example {
   id: string;
   title: string;
   blurb: string;
+  caption: string;
   question: string;
   answer: string;
   sources: Source[];
   report: AuditReport;
-}
-
-export interface Health {
-  status: string;
-  verifier: string;
-  retrieval: string;
-}
-
-// Same origin by default (`upheld serve` hosts the site and the API together).
-// A static deploy points at a hosted API with VITE_UPHELD_API at build time.
-export const API_BASE = (import.meta.env.VITE_UPHELD_API ?? "").replace(/\/$/, "");
-
-export async function getHealth(signal?: AbortSignal): Promise<Health> {
-  const res = await fetch(`${API_BASE}/health`, { signal });
-  if (!res.ok) throw new Error(`health check returned ${res.status}`);
-  return res.json();
-}
-
-export async function runAudit(req: AuditRequest, signal?: AbortSignal): Promise<AuditReport> {
-  const res = await fetch(`${API_BASE}/audit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(req),
-    signal,
-  });
-  if (!res.ok) {
-    let detail = `The API returned ${res.status}.`;
-    try {
-      const body = await res.json();
-      if (typeof body.detail === "string") detail = body.detail;
-      else if (Array.isArray(body.detail)) detail = body.detail.map((d: { msg: string }) => d.msg).join("; ");
-    } catch {
-      // keep the status-code message
-    }
-    throw new Error(detail);
-  }
-  return res.json();
 }
