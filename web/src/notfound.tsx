@@ -30,6 +30,10 @@ const SITE_TARGETS: Target[] = [
   { href: "/#quality", title: "Quality", keys: ["quality", "benchmark", "benchmarks", "evals", "accuracy"] },
   { href: "/#limits", title: "Limitations", keys: ["limits", "limitations"] },
   { href: "/#install", title: "Install", keys: ["install", "download", "get-started"] },
+  // The docs index is a real page and it is in the sitemap, so it has to be a candidate here too: /doc is one
+  // character from it. Without this, a path a letter short of /docs/ was told there was no close match, one line
+  // under a row listing /docs/.
+  { href: DOCS_URL, title: "Docs", keys: ["docs", "doc", "documentation", "reference", "manual"] },
 ];
 const DOC_TARGETS: Target[] = [
   ["overview", "Overview", "about", "intro"],
