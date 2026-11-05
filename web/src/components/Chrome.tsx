@@ -1,5 +1,5 @@
 import { ArrowUpRightIcon } from "@phosphor-icons/react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useState } from "react";
 import { AUTHOR, CTA, DOCS_URL, GITHUB_URL } from "../lib/site";
 import { GithubMark, MoonGlyph, SunGlyph } from "./icons";
@@ -98,6 +98,24 @@ export function Nav({ page }: { page: "landing" | "docs" | "404" }) {
   useEffect(() => {
     if (location.hash) document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView({ behavior: "instant" });
   }, []);
+  const [menu, setMenu] = useState(false);
+  const reduce = useReducedMotion();
+
+  // Escape closes the menu and the page doesn't scroll behind it.
+  useEffect(() => {
+    if (!menu) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenu(false);
+    };
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = previous;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [menu]);
+
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-bg/85 backdrop-blur-md">
       <div className="frame flex h-14 items-center gap-6 px-4 sm:px-5">
@@ -138,8 +156,56 @@ export function Nav({ page }: { page: "landing" | "docs" | "404" }) {
               {CTA.label}
             </LinkButton>
           )}
+          <button
+            type="button"
+            onClick={() => setMenu((open) => !open)}
+            aria-expanded={menu}
+            aria-controls="menu"
+            aria-label={menu ? "Close menu" : "Open menu"}
+            className="grid size-9 place-items-center text-ink-2 transition-colors hover:bg-cell-2 hover:text-ink lg:hidden"
+          >
+            <span className="relative block h-3 w-4" aria-hidden>
+              <span className={`absolute left-0 h-px w-4 bg-current transition-transform duration-200 ${menu ? "top-1.5 rotate-45" : "top-0.5"}`} />
+              <span className={`absolute left-0 h-px w-4 bg-current transition-transform duration-200 ${menu ? "top-1.5 -rotate-45" : "top-2.5"}`} />
+            </span>
+          </button>
         </div>
       </div>
+      <AnimatePresence>
+        {menu && (
+          <motion.div
+            id="menu"
+            key="menu"
+            initial={reduce ? false : { opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reduce ? { opacity: 0 } : { opacity: 0, y: -6 }}
+            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+            className="absolute inset-x-0 top-full h-[calc(100dvh-3.5rem)] overflow-y-auto border-b border-line bg-bg lg:hidden"
+          >
+            <nav className="frame" aria-label="Sections">
+              {[...LINKS, { id: "docs", label: "Docs" }].map((l, i) => (
+                <a
+                  key={l.id}
+                  href={l.id === "docs" ? DOCS_URL : `/#${l.id}`}
+                  onClick={() => setMenu(false)}
+                  className="ticks flex items-baseline gap-4 border-b border-line px-4 py-4 text-lg text-ink sm:px-5"
+                >
+                  <span className="label w-6 shrink-0">{String(i + 1).padStart(2, "0")}</span>
+                  {l.label}
+                </a>
+              ))}
+              <a
+                href={GITHUB_URL}
+                onClick={() => setMenu(false)}
+                className="ticks flex items-baseline gap-4 border-b border-line px-4 py-4 text-lg text-ink sm:px-5"
+              >
+                <span className="label w-6 shrink-0">{String(LINKS.length + 2).padStart(2, "0")}</span>
+                GitHub
+              </a>
+            </nav>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </header>
   );
 }
