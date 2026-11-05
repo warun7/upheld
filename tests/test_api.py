@@ -40,7 +40,9 @@ def test_serves_built_site(monkeypatch):
         return  # web/dist isn't built in this checkout
     with client(monkeypatch) as c:
         assert "<div id=\"root\">" in c.get("/").text
-        assert c.get("/app/").status_code == 200
+        assert c.get("/docs/").status_code == 200
+        # The playground is gone: the site is static and has no /app/.
+        assert c.get("/app/").status_code == 404
 
 
 def test_audits_a_provider_response(monkeypatch):

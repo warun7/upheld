@@ -1,0 +1,57 @@
+# Tests and the site build on every push and pull request.
+# Publishing is separate: .github/workflows/publish.yml, on a version tag.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Python ${{ matrix.python }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The floor and the ceiling pyproject.toml claims: requires-python >=3.12, classifiers up to 3.14.
+        python: ["3.12", "3.14"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          python-version: ${{ matrix.python }}
+      - run: uv sync --locked
+      - run: uv run pytest -q
+
+  web:
+    name: Site
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      # Typecheck, bundle, then prerender every page. A broken import or a page that can't render statically fails here.
+      - run: npm run build
+      - name: The build is static
+        run: |
+          test -f dist/index.html
+          test -f dist/docs/index.html
+          test -f dist/404.html
+          test ! -e dist/app
+          ! grep -rl "playground" dist >/dev/null

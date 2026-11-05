@@ -4,9 +4,11 @@ upheld checks the citations in an AI answer against the pages they cite.
 
 Point it at an answer from ChatGPT, Perplexity, Gemini or a RAG pipeline. It reads every cited page and says which claims the sources back. Runs locally: no API key.
 
-![A real upheld report: each claim marked supported or flagged, with the passage behind it](web/public/og.png)
+![A real upheld report: a supported claim, a wrong number struck through, an architect the page never mentions, and a link that was never archived](web/public/og.png)
 
 Try it: `pip install "upheld[models]"` · [Site](https://upheld.varunsg.com) · [Benchmarks](#how-good-is-it) · [Limitations](#known-limitations)
+
+[![CI](https://github.com/warun7/upheld/actions/workflows/ci.yml/badge.svg)](https://github.com/warun7/upheld/actions/workflows/ci.yml)
 
 AI search tools and deep-research agents now mostly cite real, working links, but the cited page often doesn't say what the answer claims: [one 2026 study](https://arxiv.org/abs/2605.06635) of 14 models found only 39–77% of cited facts were actually in the source. Link checkers can't see it. upheld splits an answer into claims, finds the relevant passage in each cited source, and says which claims the sources really back.
 
@@ -20,6 +22,7 @@ One engine, several ways in. They all call the same `run_audit()`.
 | **CLI** (`upheld audit`) | Spot-checking an answer copied from an AI search tool, or a provider's response saved as JSON. | Working |
 | **MCP server** (`upheld mcp`) | AI agents: Claude Code, Cursor, Codex or any MCP client checks the citations in an answer it drafted before showing it, or one claim against one page while it researches. See [From an AI agent, over MCP](#from-an-ai-agent-over-mcp). | Working |
 | **HTTP API** (`pip install "upheld[api]"`, then `upheld serve`) | RAG builders: audit your pipeline's outputs in CI or as a guardrail before showing an answer, from any language. `POST /audit/{provider}` takes a provider's response as it is. Also the reward server for phase 2. | Working |
+| **Website** ([upheld.varunsg.com](https://upheld.varunsg.com)) | Anyone deciding whether to trust it: three real `upheld audit --json` reports to step through, the measured accuracy with its false-alarm rate, and a setup guide for each of the surfaces above. Static, no backend. | Live |
 | **Browser extension** | Overlays verdicts directly on AI search answers. Calls the hosted API. Most visible, but brittle (each site's page structure changes). | Later |
 
 The site is static; a hosted playground would need a model server and isn't deployed.
@@ -472,7 +475,7 @@ The labels in `labels-claude.jsonl` came from Claude subagents given `labeling-g
 - ~~Read archived copies of pages upheld can't read~~ done: a page that blocks upheld, times out, serves a block page or is dead is read from the Wayback Machine's newest copy, which cut the fresh benchmark's unverifiable citations from 142 (22%) to 50 (8%)
 - ~~Installable package and provider responses~~ done: `pip install upheld`, `upheld.audit()`, and OpenAI, Anthropic, Perplexity and Gemini responses read with their own citation data
 - ~~MCP server~~ done: `upheld mcp`, so Claude Code, Cursor, Codex and other agents check the citations in an answer before they show it. Next: a pytest helper and a GitHub Action
-- ~~Web app~~ done: landing page and playground in `web/`, with the site live at [upheld.varunsg.com](https://upheld.varunsg.com). Next: deploy the playground with the hosted API, then a browser extension
+- ~~Web app~~ done: a static site in `web/` at [upheld.varunsg.com](https://upheld.varunsg.com), with three real reports to step through, the benchmarks and a setup guide. No playground: that needs a model server. Next: a browser extension
 
 **Phase 2: train a search agent to cite honestly**
 - Qwen3-4B + LoRA, GRPO, BM25 over Wikipedia, NQ + HotpotQA
