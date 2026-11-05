@@ -25,6 +25,28 @@ export function Section({
   );
 }
 
+/** Words rise out of a mask one after another. */
+export function Rise({ text, delay, className = "" }: { text: string; delay: number; className?: string }) {
+  const reduce = useReducedMotion();
+  return (
+    <span className={`block ${className}`}>
+      {text.split(" ").map((w, i) => (
+        <span key={i} className="inline-block overflow-hidden pb-[0.08em] align-top">
+          <motion.span
+            className="inline-block"
+            initial={reduce ? false : { y: "105%" }}
+            animate={{ y: 0 }}
+            transition={{ duration: 0.9, delay: delay + i * 0.06, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {w}
+            {" "}
+          </motion.span>
+        </span>
+      ))}
+    </span>
+  );
+}
+
 /** Text that rolls up to an identical copy on hover. */
 export function Roll({ children }: { children: string }) {
   return (

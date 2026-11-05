@@ -380,13 +380,20 @@ export function GlyphField({
       ctx.save();
       ctx.scale(1, cw / ch);
       const tall = (rows * ch) / cw;
-      const size = Math.min(tall * 0.9, (cols / text.length) * 1.55);
-      ctx.font = `800 ${size}px "Mona Sans Variable", system-ui, sans-serif`;
+      const font = (px: number) => `800 ${px}px "Mona Sans Variable", system-ui, sans-serif`;
+      // never wider than 92% of the field: wide glyphs like digits overflow the per-letter estimate
+      ctx.font = font(100);
+      const fit = (cols * 0.92 * 100) / ctx.measureText(text).width;
+      const size = Math.min(tall * 0.9, (cols / text.length) * 1.55, fit);
+      ctx.font = font(size);
       ctx.textAlign = "center";
       ctx.textBaseline = "alphabetic";
       ctx.fillStyle = "#fff";
-      // ascenders ~0.75em, descenders ~0.22em: centre that span vertically
-      ctx.fillText(text, cols / 2, (tall - 0.97 * size) / 2 + 0.75 * size);
+      // centre the ink vertically: "upheld" spans ascender to descender, "404" only the cap height
+      const m = ctx.measureText(text);
+      const ascent = m.actualBoundingBoxAscent || 0.75 * size;
+      const descent = m.actualBoundingBoxDescent || 0.22 * size;
+      ctx.fillText(text, cols / 2, (tall - ascent - descent) / 2 + ascent);
       ctx.restore();
       const src = ctx.getImageData(0, 0, cols, rows).data;
       const data = new Uint8Array(cols * rows * 4);

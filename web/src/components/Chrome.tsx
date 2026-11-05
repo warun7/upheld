@@ -92,7 +92,7 @@ function useActiveSection(enabled: boolean) {
   return active;
 }
 
-export function Nav({ page }: { page: "landing" | "docs" }) {
+export function Nav({ page }: { page: "landing" | "docs" | "404" }) {
   const active = useActiveSection(page === "landing");
   // The page renders after the browser's own jump to a #section link, so make the jump once it exists.
   useEffect(() => {
@@ -129,13 +129,13 @@ export function Nav({ page }: { page: "landing" | "docs" }) {
           >
             <GithubMark size={17} />
           </a>
-          {page === "landing" ? (
-            <LinkButton href={CTA.href} size="sm" className="ml-2">
-              {CTA.label}
-            </LinkButton>
-          ) : (
+          {page === "docs" ? (
             <LinkButton href="/" size="sm" variant="ghost" className="ml-2">
               About upheld
+            </LinkButton>
+          ) : (
+            <LinkButton href={page === "landing" ? CTA.href : `/${CTA.href}`} size="sm" className="ml-2">
+              {CTA.label}
             </LinkButton>
           )}
         </div>

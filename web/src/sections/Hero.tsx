@@ -1,31 +1,9 @@
 import { motion, useReducedMotion } from "motion/react";
 import { GlyphField } from "../components/GlyphField";
-import { CopyBar, LinkButton, Section, Ticker } from "../components/ui";
+import { CopyBar, LinkButton, Rise, Section, Ticker } from "../components/ui";
 import { CTA, GITHUB_URL, SECONDARY_CTA } from "../lib/site";
 
 const QUICKSTART = 'pip install "upheld[models]"';
-
-/** Words rise out of a mask one after another. */
-function Rise({ text, delay, className = "" }: { text: string; delay: number; className?: string }) {
-  const reduce = useReducedMotion();
-  return (
-    <span className={`block ${className}`}>
-      {text.split(" ").map((w, i) => (
-        <span key={i} className="inline-block overflow-hidden pb-[0.08em] align-top">
-          <motion.span
-            className="inline-block"
-            initial={reduce ? false : { y: "105%" }}
-            animate={{ y: 0 }}
-            transition={{ duration: 0.9, delay: delay + i * 0.06, ease: [0.16, 1, 0.3, 1] }}
-          >
-            {w}
-            {" "}
-          </motion.span>
-        </span>
-      ))}
-    </span>
-  );
-}
 
 const PROOF = [
   { value: "74.4", label: "macro-F1 on AttributionBench, in-distribution", note: "GPT-4 with chain of thought: 73.3" },
