@@ -54,4 +54,6 @@ jobs:
           test -f dist/docs/index.html
           test -f dist/404.html
           test ! -e dist/app
-          ! grep -rl "playground" dist >/dev/null
+          # No playground page. The word survives in the 404 page's search keys, which point /playground at the
+          # real reports on purpose, so this checks the pages rather than every byte of the build.
+          ! grep -rl "playground" dist --include="*.html"
