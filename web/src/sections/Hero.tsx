@@ -59,7 +59,7 @@ export function Hero() {
         </div>
       </div>
 
-      <div className="relative h-[24rem] overflow-hidden border-t border-line sm:h-[30rem] lg:h-[36rem]">
+      <div className="glyph-frame relative h-[24rem] overflow-hidden border-t border-line sm:h-[30rem] lg:h-[36rem]">
         <GlyphField
           mode="temple"
           cell={[6, 10]}
@@ -67,7 +67,7 @@ export function Hero() {
           label="A temple portico drawn in text characters, slowly turning. Eleven columns stand; one is broken, its drum lying on the steps."
         />
         <p className="label pointer-events-none absolute top-4 left-5 sm:left-8">Fig. 01 · Portico, in glyphs</p>
-        <p className="label pointer-events-none absolute top-4 right-5 hidden sm:right-8 sm:block">Drag to turn</p>
+        <p className="drag-hint label pointer-events-none absolute top-4 right-5 hidden sm:right-8 sm:block">Drag to turn</p>
         <p className="pointer-events-none absolute bottom-5 left-5 max-w-[22ch] text-sm text-ink-2 sm:left-8">
           Eleven columns hold. <span className="text-bad">One doesn't.</span>
         </p>

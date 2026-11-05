@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /*
   A scene drawn in monospace glyphs, in two WebGL2 passes:
@@ -297,13 +297,15 @@ export function GlyphField({
   const host = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [cw, ch] = cell;
+  // WebGL2 can be missing: an old browser, a locked-down machine, a remote desktop. Say so instead of drawing nothing.
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     const el = host.current!;
     const canvas = canvasRef.current!;
     const gl = canvas.getContext("webgl2", { alpha: true, antialias: false, premultipliedAlpha: true });
     if (!gl) {
-      el.dataset.fallback = "true";
+      setFailed(true);
       return;
     }
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -327,7 +329,7 @@ export function GlyphField({
       asciiProg = compile(gl, VERT, ASCII);
     } catch (err) {
       console.error(err);
-      el.dataset.fallback = "true";
+      setFailed(true);
       return;
     }
     const su = sceneProg ? uniforms(gl, sceneProg, ["uCells", "uCellPx", "uYaw", "uPitch", "uZoom"]) : {};
@@ -584,6 +586,17 @@ export function GlyphField({
       gl.deleteProgram(asciiProg);
     };
   }, [mode, text, ink, alt, mute, read, cw, ch]);
+
+  if (failed) {
+    return (
+      <div ref={host} className={`glyph-fallback grid place-content-center gap-2 px-6 text-center ${className}`}>
+        <p className="label">Figure unavailable</p>
+        <p className="mx-auto max-w-[34ch] text-sm leading-relaxed text-ink-3">
+          This browser can’t draw the glyph field: WebGL2 is off or unsupported. Everything else on the page works.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div

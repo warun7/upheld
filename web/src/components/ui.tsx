@@ -186,7 +186,9 @@ const NOISE = "!<>-_/[]{}=+*^?#%@01";
 /** Decodes from `from` to `to` through random glyphs when `play` turns true. */
 export function Scramble({ from, to, play, className = "" }: { from: string; to: string; play: boolean; className?: string }) {
   const reduce = useReducedMotion();
-  const [text, setText] = useState(reduce ? to : from);
+  // Settled to begin with, so the prerendered page, a reader without JavaScript and a link preview all show the
+  // edited word. The scramble starts from `from` once the tile is on screen.
+  const [text, setText] = useState(to);
   useEffect(() => {
     if (reduce) {
       setText(to);

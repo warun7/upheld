@@ -480,3 +480,15 @@
     display: none;
   }
 }
+
+/* Unlayered on purpose: this has to beat the utility height on the frame it sits in.
+   Without WebGL2 the decorative glyph field renders a message, so the frame shortens to a band
+   instead of leaving a tall empty box under the hero. */
+.glyph-frame:has(.glyph-fallback) {
+  height: 11rem;
+}
+
+/* Nothing to drag when the field can't be drawn. */
+.glyph-frame:has(.glyph-fallback) .drag-hint {
+  display: none;
+}

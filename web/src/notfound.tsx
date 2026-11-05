@@ -267,7 +267,7 @@ export function NotFound() {
             </div>
           </div>
 
-          <div className="relative h-[15rem] overflow-hidden border-t border-line sm:h-[20rem] lg:h-[24rem]">
+          <div className="glyph-frame relative h-[15rem] overflow-hidden border-t border-line sm:h-[20rem] lg:h-[24rem]">
             <GlyphField
               mode="text"
               text="404"
