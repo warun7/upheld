@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Connect, type Plugin } from "vite";
+import { readRoutes } from "./scripts/routes.mjs";
 
 const ROOT = import.meta.dirname;
 
@@ -50,11 +51,31 @@ function notFoundPage(): Plugin {
   };
 }
 
+/**
+ * Hands the site's real routes to src/notfound.tsx, so its suggestions cannot drift from the pages that exist. The
+ * reading and its guards live in scripts/routes.mjs, which scripts/check-links.mjs shares.
+ */
+function routes(): Plugin {
+  const ID = "virtual:upheld-routes";
+  const RESOLVED = `\0${ID}`;
+  return {
+    name: "upheld-routes",
+    resolveId(id) {
+      return id === ID ? RESOLVED : null;
+    },
+    load(id) {
+      if (id !== RESOLVED) return null;
+      const { sections, docs } = readRoutes(ROOT);
+      return `export const SECTIONS = ${JSON.stringify(sections)};\nexport const DOC_PAGES = ${JSON.stringify(docs)};\n`;
+    },
+  };
+}
+
 // Three static pages: the landing page at /, the docs at /docs/, and 404.html for every other path.
 // There is no API behind the site.
 export default defineConfig({
   appType: "mpa",
-  plugins: [react(), tailwindcss(), notFoundPage()],
+  plugins: [react(), tailwindcss(), notFoundPage(), routes()],
   build: {
     rollupOptions: {
       input: {

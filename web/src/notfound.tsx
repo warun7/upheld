@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Footer, Nav } from "./components/Chrome";
 import { GlyphField } from "./components/GlyphField";
 import { LinkButton, Rise, Section } from "./components/ui";
+import { DOC_PAGES, SECTIONS } from "virtual:upheld-routes";
 import { DOCS_URL, GITHUB_URL } from "./lib/site";
 import { VerdictLabel } from "./lib/verdicts";
 import { mount } from "./mount";
@@ -22,39 +23,60 @@ const slug = (s: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
-// Where a mistyped or outdated address most likely meant to go. The docs ids are the anchors in src/docs/content.tsx;
-// they're copied rather than imported so this page doesn't load the whole docs.
+// Where a mistyped or outdated address most likely meant to go.
+//
+// The sections and the docs pages are read from the source that renders them (the "upheld-routes" plugin in
+// vite.config.ts), so adding a section or a doc page makes it suggestable with nobody remembering to come back here.
+// These two tables add the only things the source cannot know: search synonyms, and the couple of names this page
+// prefers to the nav's.
+const SECTION_NOTES: Partial<Record<string, { title?: string; keys: string[] }>> = {
+  report: { title: "Real reports", keys: ["reports", "example", "examples", "demo", "playground"] },
+  how: { keys: ["how-it-works"] },
+  quality: { keys: ["benchmark", "benchmarks", "evals", "accuracy"] },
+  limits: { keys: ["limitations"] },
+  install: { keys: ["download", "get-started"] },
+};
+
+const DOC_KEYS: Partial<Record<string, string[]>> = {
+  overview: ["about", "intro"],
+  install: ["installation"],
+  setup: ["first-run", "models"],
+  quickstart: ["quick-start", "getting-started", "start"],
+  providers: ["provider", "openai", "perplexity", "gemini"],
+  "audit-an-answer": ["audit"],
+  python: ["library", "sdk", "rag"],
+  "http-api": ["api", "http", "rest"],
+  mcp: ["mcp-server", "agent", "agents"],
+  verifiers: ["verifier", "judge"],
+  eval: ["evals", "evaluate", "labels"],
+  "self-host": ["selfhost", "docker", "deploy"],
+  input: ["input-format"],
+  report: ["report-format", "json"],
+  verdicts: ["verdict", "statuses"],
+  cli: ["command-line", "commands"],
+  "how-it-works": ["architecture"],
+  troubleshooting: ["troubleshoot", "faq", "errors", "help"],
+};
+
+const keysFor = (id: string, title: string, extra: string[] = []) => [...new Set([id, slug(title), ...extra])];
+
 const SITE_TARGETS: Target[] = [
-  { href: "/#report", title: "Real reports", keys: ["report", "reports", "example", "examples", "demo", "playground"] },
-  { href: "/#how", title: "How it works", keys: ["how", "how-it-works"] },
-  { href: "/#quality", title: "Quality", keys: ["quality", "benchmark", "benchmarks", "evals", "accuracy"] },
-  { href: "/#limits", title: "Limitations", keys: ["limits", "limitations"] },
-  { href: "/#install", title: "Install", keys: ["install", "download", "get-started"] },
+  ...SECTIONS.map(({ id, title }) => ({
+    href: `/#${id}`,
+    title: SECTION_NOTES[id]?.title ?? title,
+    keys: keysFor(id, title, SECTION_NOTES[id]?.keys),
+  })),
   // The docs index is a real page and it is in the sitemap, so it has to be a candidate here too: /doc is one
   // character from it. Without this, a path a letter short of /docs/ was told there was no close match, one line
   // under a row listing /docs/.
   { href: DOCS_URL, title: "Docs", keys: ["docs", "doc", "documentation", "reference", "manual"] },
 ];
-const DOC_TARGETS: Target[] = [
-  ["overview", "Overview", "about", "intro"],
-  ["install", "Install", "installation"],
-  ["setup", "Set up and first run", "first-run", "models"],
-  ["quickstart", "Quickstart", "quick-start", "getting-started", "start"],
-  ["providers", "Audit a provider's response", "provider", "openai", "perplexity", "gemini"],
-  ["audit-an-answer", "Audit an answer from an AI search tool", "audit"],
-  ["python", "Check a RAG pipeline from Python", "library", "sdk", "rag"],
-  ["http-api", "Gate answers over HTTP", "api", "http", "rest"],
-  ["mcp", "Check answers from an AI agent", "mcp-server", "agent", "agents"],
-  ["verifiers", "Pick a verifier", "verifier", "judge"],
-  ["eval", "Measure it on your own labels", "evals", "evaluate", "labels"],
-  ["self-host", "Self-host the API", "selfhost", "docker", "deploy"],
-  ["input", "Input format", "input-format"],
-  ["report", "Report format", "report-format", "json"],
-  ["verdicts", "Verdicts and link statuses", "verdict", "statuses"],
-  ["cli", "CLI reference", "command-line", "commands"],
-  ["how-it-works", "How it works", "architecture"],
-  ["troubleshooting", "Troubleshooting", "troubleshoot", "faq", "errors", "help"],
-].map(([id, title, ...keys]) => ({ href: `${DOCS_URL}#${id}`, title, keys: [id, slug(title), ...keys] }));
+
+const DOC_TARGETS: Target[] = DOC_PAGES.map(({ id, title }) => ({
+  href: `${DOCS_URL}#${id}`,
+  title,
+  keys: keysFor(id, title, DOC_KEYS[id]),
+}));
 
 function editDistance(a: string, b: string) {
   const row = Array.from({ length: b.length + 1 }, (_, j) => j);
