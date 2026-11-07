@@ -23,7 +23,8 @@ const DOMAIN: [number, number] = [50, 90];
 const TICKS = [50, 60, 70, 80, 90];
 const pct = (v: number) => ((v - DOMAIN[0]) / (DOMAIN[1] - DOMAIN[0])) * 100;
 
-const [ENSEMBLE, JUDGE] = FRESH_VERIFIERS;
+const ENSEMBLE = FRESH_VERIFIERS.find((v) => v.verifier === "ensemble")!;
+const JUDGE = FRESH_VERIFIERS.find((v) => v.verifier === "judge")!;
 
 /** The summary that opens the section: plain numbers first, tables after. Every figure is from FRESH_VERIFIERS. */
 export function Quality() {
@@ -36,9 +37,9 @@ export function Quality() {
         </div>
         <div className="space-y-5">
           <p className="text-xl leading-relaxed text-ink sm:text-2xl sm:leading-relaxed">
-            On {FRESH_VERIFIED_CITATIONS} real 2026 citations whose page it could read, the default verifier catches {ENSEMBLE.badFlagged}% of bad citations and
-            wrongly flags {ENSEMBLE.goodFlagged}% of good ones. With the opt-in LLM judge: {JUDGE.badFlagged}% and {JUDGE.goodFlagged}%. Treat the default's flags as
-            a queue to review, and the judge's as an opinion you can act on.
+            On {FRESH_VERIFIED_CITATIONS} real 2026 citations whose page it could read, the ensemble verifier catches {ENSEMBLE.badFlagged}% of bad citations and
+            wrongly flags {ENSEMBLE.goodFlagged}% of good ones. The LLM judge, which upheld picks when it's installed and can use a GPU: {JUDGE.badFlagged}% and{" "}
+            {JUDGE.goodFlagged}%. Treat the ensemble's flags as a queue to review, and the judge's as an opinion you can act on.
           </p>
           <p className="text-sm text-ink-3">
             Verifier alone, on the labels in the 2026 section below; bad means partial or unsupported. The whole pipeline, on {FRESH_UPHELD.read} of those citations, is a little

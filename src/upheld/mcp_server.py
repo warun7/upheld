@@ -20,6 +20,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from upheld.auditor import Auditor, to_request
 from upheld.evidence import tokenize
 from upheld.models import AuditReport, AuditRequest, CitationCheck, CitedSpan, ClaimResult, Source, SourceReport, Verdict
+from upheld.verify import default_verifier
 
 log = logging.getLogger("upheld.mcp")
 
@@ -103,9 +104,10 @@ class Checker:
             if not isinstance(e, ImportError):
                 raise
             missing = getattr(e.__cause__, "name", None) or e.name or "a model library"
-            extras = "models,judge,mcp" if "judge" in self.verifier else "models,mcp"
+            name = default_verifier() if self.verifier == "auto" else self.verifier
+            extras = "models,judge,mcp" if "judge" in name else "models,mcp"
             message = (
-                f"the {self.verifier} verifier with {self.retrieval} retrieval needs packages that aren't installed ({missing}). "
+                f"the {name} verifier with {self.retrieval} retrieval needs packages that aren't installed ({missing}). "
                 f'Change the server\'s command in the MCP client config to uvx --from "upheld[{extras}]" upheld mcp, or '
                 f'pip install "upheld[{extras}]". Or start it with --verifier lexical --retrieval bm25, which needs no models '
                 "but is much weaker."
@@ -132,7 +134,7 @@ def _retrieve(task: asyncio.Future) -> None:
 
 
 def make_server(
-    verifier: str = "ensemble",
+    verifier: str = "auto",
     *,
     threshold: float | None = None,
     retrieval: str = "auto",

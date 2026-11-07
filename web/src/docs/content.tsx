@@ -251,7 +251,7 @@ Sources:
 # or straight from the clipboard on macOS
 pbpaste | upheld audit -`}</Code>
       <p>
-        <C>--question</C> is optional. LettuceDetect, one of the default verifier's three signals, reads it as context.
+        <C>--question</C> is optional. LettuceDetect, one of the ensemble's three signals, reads it as context.
       </p>
       <H3>When a page can't be read</H3>
       <p>
@@ -475,7 +475,7 @@ const verifiers: DocPage = {
   body: (
     <>
       <p>
-        The verifier decides whether the passages retrieved for a claim back it. Choose one with <C>--verifier</C> on <C>audit</C>, <C>eval</C> and <C>serve</C>,
+        The verifier decides whether the passages retrieved for a claim back it. The default, <C>auto</C>, picks the judge or the ensemble for the machine, and the report names the one it used. Choose one with <C>--verifier</C> on <C>audit</C>, <C>eval</C>, <C>serve</C> and <C>mcp</C>,
         with <C>verifier=</C> in <C>upheld.audit()</C> and <C>upheld.Auditor()</C>, or by name with <C>make_verifier()</C>. Scores are macro-F1 on AttributionBench's in-distribution test sets, for the verifier alone (the entity check
         costs about two points there and catches swapped names elsewhere).
       </p>
@@ -486,7 +486,7 @@ const verifiers: DocPage = {
             "ensemble",
             <>MiniCheck-Flan-T5-Large (770M), word overlap with exact number matching, and LettuceDetect-base (150M), combined by a fitted logistic regression.</>,
             idScore("upheld ensemble"),
-            <>The default. Catches every wrong number in the edited-claim tests.</>,
+            <>The default without the judge or a GPU. Catches every wrong number in the edited-claim tests.</>,
           ],
           [
             "ensemble+judge",
@@ -494,14 +494,19 @@ const verifiers: DocPage = {
             idScore("upheld ensemble + judge"),
             <>Accuracy matters more than speed. Fewer false alarms, and much better at claims credited to the wrong party.</>,
           ],
-          ["judge", <>Granite Guardian alone.</>, idScore("upheld judge"), <>Comparing against the ensemble.</>],
+          [
+            "judge",
+            <>Granite Guardian 3.3 8B alone, on 3 passages per claim, run locally with llama.cpp. Needs about 9 GB of free memory.</>,
+            idScore("upheld judge"),
+            <>The default when the judge extra is installed and llama.cpp can use a GPU. Half the ensemble's false alarms on real 2026 answers, at about its speed.</>,
+          ],
           ["minicheck", <>MiniCheck alone.</>, idScore("upheld minicheck"), <>One model, simplest to reason about.</>],
           ["lettuce", <>LettuceDetect alone. Flags the unsupported words.</>, idScore("upheld lettuce"), <>Studying span-level flags.</>],
           ["lexical", <>Word overlap and exact numbers. No model.</>, idScore("upheld lexical"), <>Trying the pipeline, or CI without a GPU.</>],
         ]}
       />
       <p>
-        The ensemble takes roughly 0.3 to 1 second per claim per source on an Apple M5 Pro and is several times slower on CPU; the judge ensemble reads 10 passages per claim and takes about 2.5 to 3 seconds. For
+        The ensemble takes roughly 0.3 to 1 second per claim per source on an Apple M5 Pro and is several times slower on CPU; the judge alone takes about 0.75 seconds with Metal, and the judge ensemble, which reads 10 passages per claim, about 2.5 to 3 seconds. For
         the full comparison, including GPT-4 and fine-tuned models, see the <A href="/#quality">benchmarks</A>.
       </p>
       <H3>Thresholds</H3>
@@ -859,7 +864,7 @@ const setup: DocPage = {
         ])}
       />
       <p>
-        Pick <C>ensemble</C> for speed, <C>ensemble+judge</C> if you'll act on the flags.
+        The default, <C>auto</C>, runs the judge when its extra is installed, llama.cpp can use a GPU and there's 16 GB of memory, and the ensemble otherwise. Every report names the verifier it used; pin one with <C>--verifier</C> in CI.
       </p>
       <H3>When it looks broken</H3>
       <Table mono={false} head={["What you see", "What's going on"]} rows={BROKEN.map(([problem, fix]) => [problem, fix])} />

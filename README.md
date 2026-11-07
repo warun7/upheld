@@ -67,6 +67,8 @@ unsupported It was designed by Frank Lloyd Wright.
 
 The first run downloads about 4 GB of models from Hugging Face: the two that the default ensemble verifier combines (`lytang/MiniCheck-Flan-T5-Large`, `KRLabsOrg/lettucedect-base-modernbert-en-v1`) and the retrieval embedder (`BAAI/bge-small-en-v1.5`). `verifier="minicheck"` uses one model. Plain `pip install upheld` leaves out torch and the models, and runs only `verifier="lexical", retrieval="bm25"`, which is much weaker. The most accurate verifier, `ensemble+judge`, also needs `pip install "upheld[models,judge]"`, which builds llama.cpp from source, and downloads the 8.7 GB Granite Guardian GGUF on first use. `upheld serve` needs the `api` extra (FastAPI and uvicorn): `pip install "upheld[models,api]"`. `upheld mcp`, the server for AI agents, needs the `mcp` extra: `pip install "upheld[models,mcp]"`.
 
+The verifier is picked for the machine (`--verifier auto`, the default). With the judge extra installed, a GPU that llama.cpp can use (Apple silicon or CUDA) and 16 GB of memory, it's the judge alone: on real 2026 answers it flags 19% of good citations where the ensemble flags 38%, at about the same speed. Otherwise it's the ensemble. Every report names the verifier it used; pass `--verifier` to pin one, for example in CI.
+
 The minimum versions are as old as upheld works with (pydantic 2.0, httpx 0.21; torch 2.6 and transformers 4.48 for the models), so it installs into an existing project without forcing upgrades.
 
 The same from the command line:
@@ -261,11 +263,11 @@ For an answer that says the Eiffel Tower "was designed by Frank Lloyd Wright [1]
 }
 ```
 
-The models load on the first call, in about half a minute once they're downloaded, and stay loaded. Later calls take a few seconds, mostly fetching pages. Audits run one at a time, report progress while they run, and stop after 300 seconds. Each client session starts its own server, which holds about 4 GB once it has loaded the models. Options go after `upheld mcp`, or in the server's environment:
+The models load on the first call, in about half a minute once they're downloaded, and stay loaded. Later calls take a few seconds, mostly fetching pages. Audits run one at a time, report progress while they run, and stop after 300 seconds. Each client session starts its own server, which holds about 4 GB once it has loaded the ensemble, or about 9 GB with the judge. Options go after `upheld mcp`, or in the server's environment:
 
 | Option | Environment variable | Default |
 |---|---|---|
-| `--verifier` | `UPHELD_VERIFIER` | `ensemble`. `lexical` with `--retrieval bm25` needs no models (just `upheld[mcp]`) but is much weaker; `ensemble+judge` needs `upheld[models,judge,mcp]`. |
+| `--verifier` | `UPHELD_VERIFIER` | `auto`: the judge alone when it's installed and can use a GPU, otherwise `ensemble`. `lexical` with `--retrieval bm25` needs no models (just `upheld[mcp]`) but is much weaker; `ensemble+judge` needs `upheld[models,judge,mcp]`. |
 | `--retrieval` | `UPHELD_RETRIEVAL` | `auto` |
 | `--threshold` | `UPHELD_THRESHOLD` | the verifier's |
 | `--timeout` | `UPHELD_TIMEOUT` | `300` seconds per call, model loading included |
@@ -299,7 +301,7 @@ Three kinds of test: a public benchmark of human-labeled citations, edited claim
 |---|---|---|---|---|---|
 | **upheld `ensemble+judge`** (opt-in) | **76.7** | **59.3** | **78.6** | 82.3 | 5 numbers, on 2,000 train rows |
 | upheld `ensemble+judge` + entity check (as shipped) | 74.8 | 57.8 | 75.5 | 81.0 | same |
-| **upheld `ensemble`** (default) | 74.4 | 57.8 | 71.8 | **83.1** | 4 numbers, on 2,000 train rows |
+| **upheld `ensemble`** (default without the judge) | 74.4 | 57.8 | 71.8 | **83.1** | 4 numbers, on 2,000 train rows |
 | upheld `ensemble` + entity check (as shipped) | 72.2 | 55.2 | 69.5 | 80.9 | same |
 | upheld `judge` (Granite Guardian 3.3, 8B) | 74.2 | 59.1 | 77.3 | 80.3 | threshold only |
 | upheld `minicheck` (MiniCheck-Flan-T5-Large, 770M) | 73.9 | 58.9 | 71.5 | 79.3 | threshold only |
@@ -315,10 +317,10 @@ ID = in-distribution subsets (ExpertQA, Stanford-GenSearch, AttributedQA, LFQA);
 What this says:
 
 - **The default verifier went from 64.4 to 74.4 ID macro-F1**, above every zero-shot system in the paper and 4 points below the best fine-tuned one. On OOD it's within about a point of the best fine-tuned model. It runs locally in roughly 0.3–1 s per claim on an Apple M5 Pro.
-- **The ensemble is lightly supervised, not zero-shot.** Its three weights and bias were fit on 2,000 rows of AttributionBench's train split: different rows from the test sets, but the same datasets. The clean zero-shot comparison is MiniCheck alone at its default threshold of 0.5: 73.3 ID and 79.6 OOD, level with GPT-4 on ID from a 770M model.
+- **The ensemble is lightly supervised, not zero-shot.** Its three weights and bias were fit on 2,000 rows of AttributionBench's train split: different rows from the test sets, but the same datasets. The clean zero-shot comparison is MiniCheck alone at its out-of-the-box threshold of 0.5: 73.3 ID and 79.6 OOD, level with GPT-4 on ID from a 770M model.
 - **Most of the ensemble's gain over MiniCheck is on OOD** (+3.8), where answers mostly copy wording from their evidence and word overlap is a strong signal. On ID it adds 0.5, which is within noise.
 - **An LLM judge closes more than half of the remaining ID gap.** Adding [Granite Guardian 3.3 8B](https://huggingface.co/ibm-granite/granite-guardian-3.3-8b) (IBM, Apache 2.0) as a fourth signal lifts ID from 74.4 to 76.7, 1.8 below the best fine-tuned model. Most of the gain is on real search-engine answers: Stanford-GenSearch goes from 71.8 to 78.6. OOD dips 0.8, all of it on BEGIN, where answers copy their evidence and word overlap already did the work. The judge costs an 8.7 GB model and, since its ensemble reads 10 passages per claim, about 2.5–3 s per claim in all, so it's opt-in: `--verifier ensemble+judge`.
-- **The judge alone is about as good as MiniCheck on ID and better on search-engine answers** : 74.2 ID at the threshold picked on dev, and 75.6 at its default of 0.5, which involves no fitting at all. It reads the claim without the user's question: shown the question, it also judged whether the claim answered it, and its AUC on 300 dev rows fell from 0.85 to 0.76.
+- **The judge alone is about as good as MiniCheck on ID and better on search-engine answers** : 74.2 ID at the threshold picked on dev (0.06), which it ships with, and 75.6 at 0.5, which involves no fitting at all. On the fresh 2026 labels the dev threshold does better (82.1 macro-F1 against 78.6) and flags 19% of good citations where the ensemble flags 38%, so the judge alone is the default wherever it can run on a GPU. It reads the claim without the user's question: shown the question, it also judged whether the claim answered it, and its AUC on 300 dev rows fell from 0.85 to 0.76.
 - **ExpertQA is still the hard part.** Expert-written claims against long technical evidence: 59.3 with the judge, level with GPT-4's 59.2. Every model in the paper scores below 62.
 - **The entity check costs about 2 points here.** It turns 6% of the supported test claims into false alarms (names the source writes differently: abbreviations, partial names, translations), and AttributionBench has few wrong-entity errors to make up for it. The edited claims below show what it buys.
 
@@ -362,9 +364,9 @@ Perplexity has one answer (4 citations) so far and isn't ranked. The full table 
 
 | Verifier | Passages per claim | Agreement | Macro-F1 | Bad citations flagged | Good citations flagged |
 |---|---|---|---|---|---|
-| `ensemble` (default) | 3 | 76% | 75.8 | **91%** | 38% |
+| `ensemble` (default without the judge) | 3 | 76% | 75.8 | **91%** | 38% |
 | `ensemble+judge` | 10 | **84%** | **83.7** | 86% | **18%** |
-| `judge` alone | 3 | 82% | 82.1 | 83% | 19% |
+| `judge` alone (default with the judge and a GPU) | 3 | 82% | 82.1 | 83% | 19% |
 | `minicheck` | 3 | 71% | 71.1 | 81% | 38% |
 
 The judge ensemble halves the false alarms on good citations and catches a few fewer bad ones. Part of that comes from reading more of the page:
@@ -445,13 +447,13 @@ The labels in `labels-claude.jsonl` came from Claude subagents given `labeling-g
 
 ## Known limitations
 
-- **One-step inferences fail without the judge.** In `examples/glp1.json` the source reports "the mean change in body weight ... was -14.9%" and the answer says "an average weight loss of 14.9%". The default ensemble scores that 0.42 and marks it unsupported, as is the matching placebo claim. `--verifier ensemble+judge` passes both (0.70 and 0.71). `examples/eiffel.md` still marks the true claim "intended to stand for only 20 years" unsupported with the judge (0.44): retrieval finds "slated for dismantling in 1909", but nothing connects that to 20 years.
+- **One-step inferences fail without the judge.** In `examples/glp1.json` the source reports "the mean change in body weight ... was -14.9%" and the answer says "an average weight loss of 14.9%". The ensemble scores that 0.42 and marks it unsupported, as is the matching placebo claim. The judge alone passes both (0.99 and 1.00), and so does `--verifier ensemble+judge` (0.70 and 0.71). In `examples/eiffel.md` both ensembles mark the true claim "intended to stand for only 20 years" unsupported (0.44 with the judge ensemble): retrieval finds "slated for dismantling in 1909", and only the judge alone connects that to 20 years (0.23, above its 0.06 threshold).
 - **Wrong-party claims slip through** about two times in three when the wrong name is also in the source, and about one time in three with the judge (see [Edited claims](#edited-claims)).
 - **Contradictions in the source's own words can pass without the judge.** "The Great Wall of China is visible from the Moon with the naked eye", cited to its Wikipedia article, scores 0.57 and is marked supported, though the retrieved passage says it cannot be seen: word overlap and LettuceDetect outvote MiniCheck. The judge ensemble marks it unsupported (0.45).
 - **Numbers are matched as digits, not quantities.** "It stands 410 metres tall" passes against the Eiffel Tower article (0.64) because the page gives the base as 410 ft. It passes with the judge too (0.52).
 - **ExpertQA-style claims** (long, technical, expert-written) score 57.8 macro-F1, or 59.3 with the judge, so expect more mistakes on specialist content.
 - **Entity check is a heuristic** (capitalized phrases + word frequency), not NER. It false-alarms on names the source writes differently and misses lowercase entities.
-- **Speed.** The ensemble takes roughly 0.3–1 s per claim per source on an Apple M5 Pro and is several times slower on CPU. MiniCheck dominates. The judge ensemble reads 10 passages per claim, so it takes about 2.5–3 s per claim per source with Metal (the judge about 2 s of that, against 0.75 s on 3 passages), and needs about 9 GB of free memory. `--verifier lexical` is instant but much weaker.
+- **Speed.** The ensemble takes roughly 0.3–1 s per claim per source on an Apple M5 Pro and is several times slower on CPU. MiniCheck dominates. The judge ensemble reads 10 passages per claim, so it takes about 2.5–3 s per claim per source with Metal (the judge about 2 s of that, against 0.75 s on 3 passages), and needs about 9 GB of free memory. The judge alone reads 3 passages, about 0.75 s per claim per source with Metal; `auto` picks it only when llama.cpp can use a GPU. `--verifier lexical` is instant but much weaker.
 - **No OCR.** A scanned PDF with no text layer comes back `unverifiable`, and so does a PDF over the 5 MB cap.
 - **Only short block pages are caught.** A page with under 300 characters of readable text is reported as unreadable rather than judged: in the fresh benchmark those were all cookie walls, VPN or bot checks, or JavaScript apps whose text loads in the browser. A longer stand-in, such as a paywall teaser with the article's first paragraph, is still read as the page.
 - **Sentence-level claims.** A sentence with two facts is judged as one unit.

@@ -26,7 +26,7 @@ class Auditor:
 
     def __init__(
         self,
-        verifier: str | Verifier = "ensemble",
+        verifier: str | Verifier = "auto",
         *,
         threshold: float | None = None,
         retrieval: str = "auto",
@@ -66,7 +66,7 @@ def audit(
     sources: SourcesArg = None,
     *,
     question: str | None = None,
-    verifier: str = "ensemble",
+    verifier: str = "auto",
     threshold: float | None = None,
     retrieval: str = "auto",
     provider: Provider | str = Provider.AUTO,

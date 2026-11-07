@@ -79,7 +79,7 @@ export function Limits() {
 const EXPECTATIONS = [
   "No API key and no account. Nothing leaves your machine except the requests for the cited pages.",
   "The first run downloads about 4 GB of models into ~/.cache/huggingface, which takes minutes. After that, loading them takes about half a minute, and each audit takes seconds.",
-  "The default verifier takes 0.3–1 s per claim per source on an Apple M5 Pro, and several times longer on CPU.",
+  "The ensemble takes 0.3–1 s per claim per source on an Apple M5 Pro, and several times longer on CPU. The judge alone takes about 0.75 s with Metal.",
   "The judge is opt-in. Its install builds llama.cpp, downloads 8.7 GB, and needs about 9 GB of free memory.",
   "Every report names its verifier and threshold.",
 ];
@@ -119,7 +119,8 @@ function VerifierChooser() {
         </table>
       </div>
       <p className="mt-4 text-sm text-ink">
-        Pick <span className="font-mono">ensemble</span> for speed, <span className="font-mono">ensemble+judge</span> if you'll act on the flags.
+        The default, <span className="font-mono">auto</span>, runs the judge when its extra is installed, llama.cpp can use a GPU and there's 16 GB of memory, and the ensemble
+        otherwise. Every report names the verifier it used; pin one with <span className="font-mono">--verifier</span> in CI.
       </p>
     </div>
   );

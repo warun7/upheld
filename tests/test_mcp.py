@@ -62,7 +62,7 @@ def test_audit_citations_reports_what_isnt_supported():
     out = result.structured_content
     assert out["summary"] == "1 of 3 cited claims supported, 1 uncited"
     assert out["verdicts"] == {"supported": 1, "unsupported": 1, "source_missing": 1, "uncited": 1}
-    assert out["verifier"] == "lexical@0.7" and out["retrieval"] == "bm25"
+    assert out["verifier"] == "lexical@0.56" and out["retrieval"] == "bm25"
     unsupported, missing, uncited = out["problems"]
     assert unsupported["claim"] == "It was completed in 1925."
     [citation] = unsupported["citations"]
@@ -125,7 +125,7 @@ def test_check_claim():
         "verdict": "supported",
         "score": 1.0,
         "closest_passage": EIFFEL,
-        "verifier": "lexical@0.7",
+        "verifier": "lexical@0.56",
     }
     # Both sentences are checked as one claim.
     assert unsupported.structured_content["verdict"] == "unsupported"
@@ -178,13 +178,14 @@ def test_loads_the_models_once_and_retries_a_failed_load(monkeypatch):
             super().__init__("lexical", retrieval="bm25")
 
     monkeypatch.setattr(mcp_server, "Auditor", Auditor)
+    monkeypatch.setattr(mcp_server, "default_verifier", lambda: "ensemble")  # what auto means without the judge
     args = {"claim": "The Eiffel Tower was completed in 1889.", "text": EIFFEL}
     failed, first, second = asyncio.run(calls(make_server(), ("check_claim", args), ("check_claim", args), ("check_claim", args)))
     assert failed.is_error
     assert 'uvx --from "upheld[models,mcp]" upheld mcp' in failed.content[0].text
     assert "--verifier lexical --retrieval bm25" in failed.content[0].text
     assert first.structured_content["verdict"] == second.structured_content["verdict"] == "supported"
-    assert built == ["ensemble", "ensemble"]
+    assert built == ["auto", "auto"]
 
 
 def test_excerpt_keeps_the_closest_sentences():

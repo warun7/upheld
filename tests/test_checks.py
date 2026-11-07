@@ -110,3 +110,28 @@ def test_make_verifier_ignores_device_for_lexical():
     assert v.name == "lexical@0.6"
     with pytest.raises(ValueError):
         make_verifier("nope")
+
+
+def test_auto_picks_the_judge_only_when_it_can_run_well(monkeypatch):
+    import importlib.util
+    import sys
+    import types
+
+    from upheld import verify
+
+    fake = types.SimpleNamespace(llama_supports_gpu_offload=lambda: True)
+    monkeypatch.setitem(sys.modules, "llama_cpp", fake)
+    monkeypatch.setattr(importlib.util, "find_spec", lambda name: object())
+    monkeypatch.setattr(verify, "_memory_gib", lambda: 24.0)
+    assert verify.default_verifier() == "judge"
+    assert verify.default_verifier(device="cpu") == "ensemble"
+
+    monkeypatch.setattr(verify, "_memory_gib", lambda: 8.0)
+    assert verify.default_verifier() == "ensemble"
+
+    monkeypatch.setattr(verify, "_memory_gib", lambda: 24.0)
+    fake.llama_supports_gpu_offload = lambda: False
+    assert verify.default_verifier() == "ensemble"
+
+    monkeypatch.setattr(importlib.util, "find_spec", lambda name: None if name == "llama_cpp" else object())
+    assert verify.default_verifier() == "ensemble"

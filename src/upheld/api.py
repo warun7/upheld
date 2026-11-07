@@ -19,14 +19,14 @@ from upheld.verify import make_verifier
 _state: dict = {}
 
 # The built website (web/dist). Served at / when present, so `upheld serve` hosts the
-# landing page and the playground next to the API.
+# landing page and the docs next to the API.
 SITE_DIR = Path(os.environ.get("UPHELD_SITE_DIR", Path(__file__).resolve().parents[2] / "web" / "dist"))
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Load the models once at startup, not per request.
-    _state["verifier"] = make_verifier(os.environ.get("UPHELD_VERIFIER", "ensemble"))
+    _state["verifier"] = make_verifier(os.environ.get("UPHELD_VERIFIER", "auto"))
     _state["embedder"] = make_embedder(os.environ.get("UPHELD_RETRIEVAL", "auto"))
     # A public deployment can cap concurrent audits so requests queue instead of
     # competing for one model on a small machine.

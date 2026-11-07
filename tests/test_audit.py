@@ -40,7 +40,7 @@ def test_verdicts_across_failure_modes():
     assert report.claims[2].checks[0].missing_entities == ["Ozempic"]
     assert report.claims[1].checks[0].unsupported_spans[0].text == "1925"
     assert report.summary.supported_claims == 1 and report.summary.cited_claims == 4
-    assert report.verifier == "lexical@0.7"
+    assert report.verifier == "lexical@0.56"
     assert report.retrieval == "bm25"
     assert {s.id: s.status for s in report.sources} == {"1": LinkStatus.PROVIDED, "2": LinkStatus.PROVIDED, "9": LinkStatus.MISSING}
 

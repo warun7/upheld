@@ -8,8 +8,12 @@ Verifiers see the whole answer, not just one claim: LettuceDetect was trained
 on full RAG responses and misjudges sentences scored in isolation.
 """
 
+import contextlib
+import importlib.util
 import math
+import os
 import re
+import sys
 from dataclasses import dataclass, field
 from typing import Protocol
 
@@ -52,7 +56,9 @@ class LexicalVerifier:
 
     top_k = 3
 
-    def __init__(self, threshold: float = 0.7):
+    THRESHOLD = 0.56  # picked on the AttributionBench dev split, like every published number for it
+
+    def __init__(self, threshold: float = THRESHOLD):
         self.threshold = threshold
         self.name = f"lexical@{threshold}"
 
@@ -146,7 +152,9 @@ class MiniCheckVerifier:
     MAX_TOKENS = 2048
     LABEL_TOKENS = [3, 209]  # the tokens it was trained to emit for unsupported / supported
 
-    def __init__(self, model_path: str = DEFAULT_MODEL, threshold: float = 0.5, device: str | None = None, batch_size: int = 8):
+    THRESHOLD = 0.23  # picked on the AttributionBench dev split, like every published number for it
+
+    def __init__(self, model_path: str = DEFAULT_MODEL, threshold: float = THRESHOLD, device: str | None = None, batch_size: int = 8):
         try:
             import torch
             from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
@@ -207,7 +215,11 @@ class GraniteJudgeVerifier:
     CHUNK_WORDS = 1500
     N_CTX = 8192
 
-    def __init__(self, threshold: float = 0.5, device: str | None = None, model_path: str | None = None):
+    # Picked on the AttributionBench dev split, like every published number for it. The judge's grounded probability
+    # sits near 0 or 1, so only a confident "ungrounded" flags a claim.
+    THRESHOLD = 0.06
+
+    def __init__(self, threshold: float = THRESHOLD, device: str | None = None, model_path: str | None = None):
         try:
             import llama_cpp
             from huggingface_hub import hf_hub_download
@@ -343,9 +355,60 @@ def _locate_tokens(text: str, tokens: list[str]) -> list[tuple[int, int] | None]
     return located
 
 
+JUDGE_MIN_MEMORY_GIB = 16  # the judge's 8.7 GB of weights plus room for everything else
+
+
+def _memory_gib() -> float:
+    try:
+        return os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES") / 2**30
+    except (AttributeError, ValueError, OSError):  # Windows, or a platform that won't say
+        return 0.0
+
+
+@contextlib.contextmanager
+def _quiet_stderr():
+    """Silence native code's stderr: llama.cpp prints its GPU setup, about 50 lines, the first time it's asked about one."""
+    try:
+        fd = sys.stderr.fileno()
+    except (AttributeError, ValueError, OSError):  # stderr replaced by something without a file, as in some test runners
+        yield
+        return
+    saved, devnull = os.dup(fd), os.open(os.devnull, os.O_WRONLY)
+    try:
+        sys.stderr.flush()
+        os.dup2(devnull, fd)
+        yield
+    finally:
+        os.dup2(saved, fd)
+        os.close(saved)
+        os.close(devnull)
+
+
+def default_verifier(device: str | None = None) -> str:
+    """The verifier `auto` stands for on this machine.
+
+    The judge alone when its extra is installed, llama.cpp can run it on a GPU, and there is memory to spare: on the
+    fresh 2026 labels it flags 19% of good citations where the ensemble flags 38%, at about the same speed on a GPU.
+    Otherwise the ensemble, since on a CPU the judge takes many seconds per claim.
+    """
+    if device == "cpu" or any(importlib.util.find_spec(m) is None for m in ("llama_cpp", "huggingface_hub", "transformers")):
+        return "ensemble"
+    try:
+        import llama_cpp
+
+        with _quiet_stderr():
+            gpu = bool(llama_cpp.llama_supports_gpu_offload())
+    except (ImportError, OSError, AttributeError):  # a broken llama.cpp build fails here, not halfway through the first audit
+        return "ensemble"
+    return "judge" if gpu and _memory_gib() >= JUDGE_MIN_MEMORY_GIB else "ensemble"
+
+
 def make_verifier(name: str, threshold: float | None = None, device: str | None = None) -> Verifier:
-    """Build a verifier by name. `device` (e.g. "mps", "cuda") applies to the model-based ones."""
+    """Build a verifier by name. `device` (e.g. "mps", "cuda") applies to the model-based ones. `auto` picks one for
+    this machine (see default_verifier); the report names the one it picked."""
     kwargs = {} if threshold is None else {"threshold": threshold}
+    if name == "auto":
+        name = default_verifier(device)
     if name == "lexical":
         return LexicalVerifier(**kwargs)
     if name == "lettuce":
@@ -358,4 +421,4 @@ def make_verifier(name: str, threshold: float | None = None, device: str | None 
         return EnsembleVerifier(device=device, with_judge=True, **kwargs)
     if name == "judge":
         return GraniteJudgeVerifier(device=device, **kwargs)
-    raise ValueError(f"unknown verifier: {name} (choose ensemble, ensemble+judge, minicheck, lettuce, lexical or judge)")
+    raise ValueError(f"unknown verifier: {name} (choose auto, ensemble, ensemble+judge, judge, minicheck, lettuce or lexical)")

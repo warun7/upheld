@@ -80,7 +80,7 @@ export const BROKEN: [string, string][] = [
     "A Gemini source link.",
     "Gemini's source links are redirects that expire. Once one has, its claims are reported unverifiable. Audit a Gemini answer soon after you get it.",
   ],
-  ["The judge runs out of memory.", "It needs about 9 GB of free memory. Use ensemble instead."],
+  ["The judge runs out of memory.", "It needs about 9 GB of free memory. Pass --verifier ensemble instead."],
   [
     "You used --verifier lexical --retrieval bm25.",
     "It needs no models and is instant, but it's much weaker: it checks word overlap. Use it when you can't spare the memory or the download.",

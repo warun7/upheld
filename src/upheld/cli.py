@@ -30,7 +30,7 @@ VERDICT_STYLE = {
     Verdict.UNCITED: "dim",
 }
 
-VERIFIER_HELP = "ensemble (MiniCheck, word overlap and LettuceDetect combined), ensemble+judge (adds the Granite Guardian 3.3 8B judge: most accurate, slower, needs the judge extra), minicheck (MiniCheck-Flan-T5), lettuce (LettuceDetect), lexical (word overlap, no model), or judge (the Granite judge alone)."
+VERIFIER_HELP = "auto (the default: judge when the judge extra is installed and llama.cpp can use a GPU, otherwise ensemble), ensemble (MiniCheck, word overlap and LettuceDetect combined), ensemble+judge (adds the Granite Guardian 3.3 8B judge: most accurate, about 3x slower than the judge alone, needs the judge extra), minicheck (MiniCheck-Flan-T5), lettuce (LettuceDetect), lexical (word overlap, no model), or judge (the Granite judge alone: half the ensemble's false alarms, needs the judge extra)."
 THRESHOLD_HELP = "Support score below this counts as unsupported."
 RETRIEVAL_HELP = "How to find evidence in each source: hybrid (BM25 + embeddings), bm25, or auto (hybrid if installed)."
 ALLOW_PRIVATE_HELP = "Allow fetching localhost and private-network URLs."
@@ -54,7 +54,7 @@ def audit(
             help="Whose API response the JSON is: openai, anthropic, perplexity or gemini. auto tells them apart by shape, and reads JSON with an `answer` as an AuditRequest.",
         ),
     ] = Provider.AUTO,
-    verifier: VerifierOpt = "ensemble",
+    verifier: VerifierOpt = "auto",
     threshold: ThresholdOpt = None,
     retrieval: RetrievalOpt = "auto",
     fetch: Annotated[bool, typer.Option(help="Fetch cited URLs. Off means only inline source text is used.")] = True,
@@ -85,7 +85,7 @@ def audit(
 @app.command("eval")
 def evaluate(
     path: Annotated[Path, typer.Argument(help="Labeled JSONL: claim, evidence, label (supported|unsupported).")],
-    verifier: VerifierOpt = "ensemble",
+    verifier: VerifierOpt = "auto",
     threshold: ThresholdOpt = None,
 ) -> None:
     """Measure a verifier against human labels, with a threshold sweep."""
@@ -116,10 +116,10 @@ def evaluate(
 def serve(
     host: str = "127.0.0.1",
     port: int = 8000,
-    verifier: VerifierOpt = "ensemble",
+    verifier: VerifierOpt = "auto",
     retrieval: RetrievalOpt = "auto",
 ) -> None:
-    """Run the HTTP API, plus the website and playground when web/dist is built."""
+    """Run the HTTP API, plus the website when web/dist is built."""
     try:
         import fastapi  # noqa: F401
         import uvicorn
@@ -134,7 +134,7 @@ def serve(
 
 @app.command("mcp")
 def mcp_server(
-    verifier: Annotated[str, typer.Option(envvar="UPHELD_VERIFIER", help=VERIFIER_HELP)] = "ensemble",
+    verifier: Annotated[str, typer.Option(envvar="UPHELD_VERIFIER", help=VERIFIER_HELP)] = "auto",
     threshold: Annotated[float | None, typer.Option(envvar="UPHELD_THRESHOLD", help=THRESHOLD_HELP)] = None,
     retrieval: Annotated[str, typer.Option(envvar="UPHELD_RETRIEVAL", help=RETRIEVAL_HELP)] = "auto",
     timeout: Annotated[

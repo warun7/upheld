@@ -294,6 +294,15 @@ export const FRESH_VERIFIERS: {
     memory: "about 4 GB, loaded",
   },
   {
+    verifier: "judge",
+    passages: 3,
+    agreement: 82,
+    badFlagged: 83,
+    goodFlagged: 19,
+    time: "about 0.75 s per claim per source, with Metal",
+    memory: "about 9 GB free, plus an 8.7 GB model",
+  },
+  {
     verifier: "ensemble+judge",
     passages: 10,
     agreement: 84,

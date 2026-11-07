@@ -18,7 +18,7 @@ def client(monkeypatch, **env: str) -> TestClient:
 
 def test_health_and_audit(monkeypatch):
     with client(monkeypatch, UPHELD_MAX_CONCURRENT="1") as c:
-        assert c.get("/health").json() == {"status": "ok", "verifier": "lexical@0.7", "retrieval": "bm25"}
+        assert c.get("/health").json() == {"status": "ok", "verifier": "lexical@0.56", "retrieval": "bm25"}
         res = c.post(
             "/audit",
             json={
