@@ -1,0 +1,2 @@
+# Built from web/report.html by `npm run build` in web/.
+src/upheld/report.html linguist-generated=true -diff

@@ -4,8 +4,8 @@ import { AnswerText, ClaimDetail, SourceRows, thresholdOf } from "../components/
 import { Section } from "../components/ui";
 import glp1Json from "../data/examples/glp1.json";
 import towerJson from "../data/examples/tower.json";
-import type { ClaimResult, Example, Verdict } from "../lib/report";
-import { VERDICTS } from "../lib/verdicts";
+import type { ClaimResult, Example } from "../lib/report";
+import { FILTERS, VERDICTS, type Filter } from "../lib/verdicts";
 
 // Both are real `upheld audit --json` reports. TODO(owner): a third real example, from evals/fresh (a Perplexity-style answer with [n] markers).
 const EXAMPLES: Example[] = [towerJson as Example, glp1Json as Example];
@@ -20,15 +20,6 @@ const DOT: Record<ClaimResult["verdict"], string> = {
   unverifiable: "bg-ink-3",
   uncited: "bg-ink-3",
 };
-
-type Filter = "all" | "supported" | "flagged" | "unreadable";
-
-const FILTERS: { id: Filter; label: string; match: (v: Verdict) => boolean }[] = [
-  { id: "all", label: "All", match: () => true },
-  { id: "supported", label: "Supported", match: (v) => v === "supported" },
-  { id: "flagged", label: "Flagged", match: (v) => v === "unsupported" || v === "wrong_entity" || v === "misattributed" || v === "source_missing" },
-  { id: "unreadable", label: "Can't read", match: (v) => v === "unverifiable" },
-];
 
 const pad = (n: number) => String(n).padStart(2, "0");
 

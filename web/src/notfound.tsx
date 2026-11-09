@@ -8,6 +8,7 @@ import { DOC_PAGES, SECTIONS } from "virtual:upheld-routes";
 import { DOCS_URL, GITHUB_URL } from "./lib/site";
 import { VerdictLabel } from "./lib/verdicts";
 import { mount } from "./mount";
+import "./fonts.css";
 import "./styles.css";
 
 /** The pages the build makes, as listed in public/sitemap.xml. */

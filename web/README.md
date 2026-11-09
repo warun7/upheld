@@ -10,6 +10,11 @@ it prefers to the nav's. If content.tsx stops looking like a list of pages, the 
 `npm run build` ends by running `scripts/check-links.mjs`, which fails when the nav links to a section the page doesn't render, when the docs
 index links to a page the build didn't make, when an in-page anchor has no target, or when a sitemap URL has no file behind it.
 
+`report.html` is a fourth page that isn't part of the site: the report viewer `upheld audit --html` writes. `npm run build` ends by building it with
+`vite.report.config.ts` and folding the script, stylesheet and Latin fonts into one file with `scripts/inline-report.mjs`, which writes
+`src/upheld/report.html` in the Python package. Commit that file with the change that produced it; CI fails when it's stale. `npm run dev`
+serves the template at `/report.html` with the Eiffel Tower example in it.
+
 The reports on the landing page are real `upheld audit --json` output, saved in `src/data/examples/`, so the page works without a backend. The docs are static too. Numbers come from `src/data/benchmarks.ts`, which is copied from the root README.
 
 ## Develop

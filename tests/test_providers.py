@@ -211,4 +211,4 @@ def test_cli_reads_a_provider_response():
     assert [c["cited"] for c in report["claims"]] == [["1", "2"], ["2", "3"], ["1"], []]
 
     result = CliRunner().invoke(app, ["audit", str(FIXTURES / "perplexity.json"), "--from", "anthropic", "--no-fetch"])
-    assert result.exit_code == 1 and "not an Anthropic message" in result.output
+    assert result.exit_code == 2 and "not an Anthropic message" in result.output

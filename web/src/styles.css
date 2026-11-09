@@ -1,6 +1,4 @@
 @import "tailwindcss";
-@import "@fontsource-variable/mona-sans/wdth.css";
-@import "@fontsource-variable/geist-mono";
 
 /*
   Theme tokens. Light paper is the default; dark applies only when the visitor picks it

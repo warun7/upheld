@@ -748,14 +748,33 @@ const cli: DocPage = {
             <C>auto</C>,
             <>Whose API response the JSON is: <C>openai</C>, <C>anthropic</C>, <C>perplexity</C> or <C>gemini</C>. <C>auto</C> tells them apart, and reads JSON with an <C>answer</C> as an AuditRequest.</>,
           ],
-          ["--verifier NAME", <C>ensemble</C>, <>See <A href="#verifiers">Pick a verifier</A>.</>],
+          ["--verifier NAME", <C>auto</C>, <>See <A href="#verifiers">Pick a verifier</A>.</>],
           ["--threshold FLOAT", <>the verifier's</>, "Support score below this counts as unsupported."],
           ["--retrieval NAME", <C>auto</C>, <><C>auto</C>, <C>hybrid</C> or <C>bm25</C>.</>],
           ["--no-fetch", <>fetching on</>, "Use only source text given inline; never request a URL."],
           ["--allow-private", <>off</>, "Allow fetching localhost and private-network URLs, for testing your own pages."],
           ["--json", <>off</>, "Print the full report as JSON instead of tables."],
+          [
+            "--html PATH",
+            <>none</>,
+            "Also write the report as one HTML page: the report viewer from this site with the audit inside. It loads nothing from the network, so it opens from disk or as a CI artifact.",
+          ],
+          [
+            "--fail-on VERDICTS",
+            <>none</>,
+            <>
+              Exit 1 if any claim gets one of these verdicts, separated by commas: <C>unsupported</C>, <C>wrong_entity</C>, <C>misattributed</C>,{" "}
+              <C>source_missing</C>, <C>unverifiable</C>, <C>uncited</C>, or <C>flagged</C> for the first four.
+            </>,
+          ],
         ]}
       />
+      <p>
+        <C>upheld audit</C> exits 0 when the audit finishes, 1 when <C>--fail-on</C> matches a claim, and 2 on an error: input it can't read, an unknown
+        option value or a missing extra. A CI job can fail on 1 and still tell a broken run from a failed check. Pin <C>--verifier</C> there, since the
+        default picks one for the machine:
+      </p>
+      <Code>{`upheld audit answer.md --verifier ensemble --fail-on flagged --html report.html`}</Code>
       <H3>upheld eval PATH</H3>
       <p>
         Score a verifier against labeled JSONL, with a threshold sweep. Takes <C>--verifier</C> and <C>--threshold</C>. See{" "}

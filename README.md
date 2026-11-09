@@ -80,9 +80,13 @@ The same from the command line:
 upheld audit answer.md                       # markdown answer with a reference list; fetches the URLs
 upheld audit response.json --from openai     # a provider's API response, saved as JSON
 upheld audit answer.md --json                # full report
+upheld audit answer.md --html report.html    # also write the report as one HTML page to open or share
+upheld audit answer.md --fail-on flagged     # exit 1 if a claim is unsupported, wrong_entity, misattributed or source_missing
 upheld serve                                 # POST /audit on http://127.0.0.1:8000 (needs upheld[api])
 upheld mcp                                   # MCP server over stdio, for AI agents (needs upheld[mcp])
 ```
+
+`--html` writes the same report viewer the website uses, with the audit inside, as a single file of about 500 KB. It loads nothing from the network, so it opens from disk, as an email attachment or as a CI artifact. `--fail-on` takes verdicts separated by commas (`unsupported`, `wrong_entity`, `misattributed`, `source_missing`, `unverifiable`, `uncited`) or `flagged` for the first four. `upheld audit` exits 1 when a claim gets one of them, 2 on an error such as unreadable input or a missing extra, and 0 otherwise, so a CI job can tell a failed check from a broken one. Pin `--verifier` in CI: the default picks one for the machine.
 
 ### From a clone
 
@@ -482,6 +486,7 @@ The labels in `labels-claude.jsonl` came from Claude subagents given `labeling-g
 - ~~Read archived copies of pages upheld can't read~~ done: a page that blocks upheld, times out, serves a block page or is dead is read from the Wayback Machine's newest copy, which cut the fresh benchmark's unverifiable citations from 142 (22%) to 50 (8%)
 - ~~Installable package and provider responses~~ done: `pip install upheld`, `upheld.audit()`, and OpenAI, Anthropic, Perplexity and Gemini responses read with their own citation data
 - ~~MCP server~~ done: `upheld mcp`, so Claude Code, Cursor, Codex and other agents check the citations in an answer before they show it. Next: a pytest helper and a GitHub Action
+- ~~Shareable reports and CI exit codes~~ done: `--html` writes the report viewer as one offline HTML file, and `--fail-on` makes a flagged claim fail the command
 - ~~Web app~~ done: a static site in `web/` at [upheld.varunsg.com](https://upheld.varunsg.com), with two real reports to step through, the benchmarks and a setup guide. No playground: that needs a model server. Next: a browser extension
 
 **Phase 2: train a search agent to cite honestly**

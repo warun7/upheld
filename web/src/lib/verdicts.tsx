@@ -55,6 +55,16 @@ export const VERDICTS: Record<Verdict, { label: string; short: string; icon: Ico
   },
 };
 
+export type Filter = "all" | "supported" | "flagged" | "unreadable";
+
+/** Claim filters. Flagged is what `upheld audit --fail-on flagged` fails on. */
+export const FILTERS: { id: Filter; label: string; match: (v: Verdict) => boolean }[] = [
+  { id: "all", label: "All", match: () => true },
+  { id: "supported", label: "Supported", match: (v) => v === "supported" },
+  { id: "flagged", label: "Flagged", match: (v) => v === "unsupported" || v === "wrong_entity" || v === "misattributed" || v === "source_missing" },
+  { id: "unreadable", label: "Can't read", match: (v) => v === "unverifiable" },
+];
+
 export const VERDICT_ORDER: Verdict[] = [
   "supported",
   "unsupported",

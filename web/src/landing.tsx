@@ -5,6 +5,7 @@ import { Hero } from "./sections/Hero";
 import { HowItWorks, Problem, Verdicts } from "./sections/Story";
 import { Report } from "./sections/Report";
 import { mount } from "./mount";
+import "./fonts.css";
 import "./styles.css";
 
 export function Landing() {

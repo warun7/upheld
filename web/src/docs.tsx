@@ -5,6 +5,7 @@ import { Section } from "./components/ui";
 import { DOCS } from "./docs/content";
 import { DocSection } from "./docs/prose";
 import { mount } from "./mount";
+import "./fonts.css";
 import "./styles.css";
 
 const PAGES = DOCS.flatMap((g) => g.pages);

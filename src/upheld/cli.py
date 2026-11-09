@@ -13,6 +13,7 @@ from rich.table import Table
 from upheld.auditor import to_request
 from upheld.evals import load_examples, metrics_at, score_examples
 from upheld.evidence import make_embedder
+from upheld.htmlreport import render_html
 from upheld.models import AuditReport, AuditRequest, Verdict
 from upheld.pipeline import run_audit
 from upheld.providers import Provider
@@ -20,6 +21,7 @@ from upheld.verify import make_verifier
 
 app = typer.Typer(no_args_is_help=True, help="Check whether an AI answer's citations actually support its claims.")
 console = Console()
+err = Console(stderr=True)
 
 VERDICT_STYLE = {
     Verdict.SUPPORTED: "green",
@@ -35,6 +37,29 @@ VERIFIER_HELP = "auto (the default: judge when the judge extra is installed and 
 THRESHOLD_HELP = "Support score below this counts as unsupported."
 RETRIEVAL_HELP = "How to find evidence in each source: hybrid (BM25 + embeddings), bm25, or auto (hybrid if installed)."
 ALLOW_PRIVATE_HELP = "Allow fetching localhost and private-network URLs."
+
+# The verdicts the site's "Flagged" filter shows: the claim is wrong, or its source is gone.
+FLAGGED = (Verdict.UNSUPPORTED, Verdict.WRONG_ENTITY, Verdict.MISATTRIBUTED, Verdict.SOURCE_MISSING)
+FAIL_ON_HELP = (
+    "Exit with status 1 if any claim gets one of these verdicts, comma-separated: unsupported, wrong_entity, misattributed, "
+    "source_missing, unverifiable, uncited, or flagged for the first four. Without it, a finished audit exits 0. "
+    "Errors exit 2."
+)
+
+
+def _fail_on(value: str | None) -> set[Verdict]:
+    verdicts: set[Verdict] = set()
+    for name in (s.strip().lower().replace("-", "_") for s in (value or "").split(",")):
+        if not name:
+            continue
+        if name == "flagged":
+            verdicts.update(FLAGGED)
+        elif name in Verdict._value2member_map_ and name != Verdict.SUPPORTED:
+            verdicts.add(Verdict(name))
+        else:
+            raise typer.BadParameter(f"{name!r} isn't a verdict to fail on; use {', '.join(v.value for v in Verdict if v != Verdict.SUPPORTED)} or flagged")
+    return verdicts
+
 
 VerifierOpt = Annotated[str, typer.Option(help=VERIFIER_HELP)]
 ThresholdOpt = Annotated[float | None, typer.Option(help=THRESHOLD_HELP)]
@@ -61,26 +86,55 @@ def audit(
     fetch: Annotated[bool, typer.Option(help="Fetch cited URLs. Off means only inline source text is used.")] = True,
     allow_private: Annotated[bool, typer.Option(help=ALLOW_PRIVATE_HELP)] = False,
     as_json: Annotated[bool, typer.Option("--json", help="Print the full report as JSON.")] = False,
+    html: Annotated[
+        Path | None,
+        typer.Option("--html", help="Also write the report as one self-contained HTML page to this path, to open in a browser or share."),
+    ] = None,
+    fail_on: Annotated[str | None, typer.Option("--fail-on", help=FAIL_ON_HELP)] = None,
 ) -> None:
     """Audit one answer."""
-    text = sys.stdin.read() if str(path) == "-" else path.read_text()
+    failing_verdicts = _fail_on(fail_on)
     try:
+        text = sys.stdin.read() if str(path) == "-" else path.read_text()
         if path.suffix == ".json" or provider != Provider.AUTO or (str(path) == "-" and text.lstrip().startswith("{")):
             req = to_request(json.loads(text), question=question, provider=provider)
         else:
             req = AuditRequest(answer=text, question=question)
-    except ValueError as e:  # bad JSON, or not a response upheld can read
-        console.print(f"[red]error:[/] {e}")
-        raise typer.Exit(1) from e
-    report = asyncio.run(
-        run_audit(
-            req, make_verifier(verifier, threshold), embedder=make_embedder(retrieval), fetch=fetch, allow_private=allow_private
+    except (OSError, ValueError) as e:  # unreadable file, bad JSON, or not a response upheld can read
+        err.print(f"[red]error:[/] {e}")
+        raise typer.Exit(2) from e
+    try:
+        report = asyncio.run(
+            run_audit(
+                req, make_verifier(verifier, threshold), embedder=make_embedder(retrieval), fetch=fetch, allow_private=allow_private
+            )
         )
-    )
+    except (ImportError, ValueError) as e:  # a missing extra, or an unknown verifier or retrieval name
+        err.print(f"[red]error:[/] {e}")
+        raise typer.Exit(2) from e
+    except Exception as e:
+        # A crash must not exit 1, which --fail-on uses for "the audit found problems".
+        err.print_exception()
+        raise typer.Exit(2) from e
     if as_json:
         print(report.model_dump_json(indent=2))
     else:
         render(report)
+    if html:
+        try:
+            html.write_text(render_html(req, report), encoding="utf-8")
+        except OSError as e:
+            err.print(f"[red]error:[/] couldn't write the HTML report: {e}")
+            raise typer.Exit(2) from e
+        err.print(f"wrote {html}", soft_wrap=True, highlight=False)
+    failing = [c for c in report.claims if c.verdict in failing_verdicts]
+    if failing:
+        counts: dict[Verdict, int] = {}
+        for c in failing:
+            counts[c.verdict] = counts.get(c.verdict, 0) + 1
+        found = ", ".join(f"{n} {v.value}" for v, n in sorted(counts.items(), key=lambda kv: -kv[1]))
+        err.print(f"[red]--fail-on:[/] {len(failing)} of {len(report.claims)} claims failed ({found})")
+        raise typer.Exit(1)
 
 
 @app.command("eval")

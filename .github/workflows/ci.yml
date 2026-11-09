@@ -57,3 +57,10 @@ jobs:
           # No playground page. The word survives in the 404 page's search keys, which point /playground at the
           # real reports on purpose, so this checks the pages rather than every byte of the build.
           ! grep -rl "playground" dist --include="*.html"
+      # upheld audit --html fills in src/upheld/report.html, which this build writes. The committed copy must match it.
+      - name: The packaged report template is up to date
+        run: |
+          if ! git diff --quiet -- ../src/upheld/report.html; then
+            echo "::error file=src/upheld/report.html::stale: run npm run build in web/ and commit src/upheld/report.html"
+            exit 1
+          fi
