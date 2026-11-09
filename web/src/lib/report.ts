@@ -1,6 +1,13 @@
 // Types mirror src/upheld/models.py. Keep them in sync when the report changes.
 
-export type Verdict = "supported" | "unsupported" | "wrong_entity" | "source_missing" | "unverifiable" | "uncited";
+export type Verdict =
+  | "supported"
+  | "unsupported"
+  | "wrong_entity"
+  | "misattributed"
+  | "source_missing"
+  | "unverifiable"
+  | "uncited";
 export type LinkStatus = "provided" | "live" | "archived" | "link_rot" | "likely_fabricated" | "unreachable" | "missing";
 
 export interface Source {
@@ -47,6 +54,8 @@ export interface ClaimResult {
   cited: string[];
   verdict: Verdict;
   checks: CitationCheck[];
+  /** Other sources in the answer that back the claim when what it cites doesn't, best first. */
+  supported_by?: CitationCheck[];
   note: string | null;
 }
 

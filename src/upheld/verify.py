@@ -19,6 +19,7 @@ from typing import Protocol
 
 from upheld.evidence import tokenize
 from upheld.models import Span
+from upheld.quantities import Quantity, compare, quantities
 
 
 @dataclass
@@ -49,7 +50,9 @@ def _normalize_number(n: str) -> str:
 class LexicalVerifier:
     """Baseline: share of the claim's content words found in the evidence.
 
-    Numbers must match exactly. This is deliberately simple; it exists so the
+    Numbers must match exactly, except that a length, mass, speed or time may be
+    given in another unit ("125 m" for "410 ft"), and the same digits in another
+    unit don't count ("410 metres" for "410 ft"). This is deliberately simple; it exists so the
     learned verifiers have something to beat in evals, and so tests run
     without downloading a model.
     """
@@ -68,17 +71,27 @@ class LexicalVerifier:
         evidence = " ".join(passages)
         evidence_words = set(tokenize(evidence))
         evidence_numbers = {_normalize_number(n) for n in _NUMBER.findall(evidence)}
-        return [self._check_one(answer[s:e], evidence_words, evidence_numbers) for s, e in claims]
+        evidence_quantities = quantities(evidence)
+        return [self._check_one(answer[s:e], evidence_words, evidence_numbers, evidence_quantities) for s, e in claims]
 
-    def _check_one(self, claim: str, evidence_words: set[str], evidence_numbers: set[str]) -> SupportResult:
+    def _check_one(
+        self, claim: str, evidence_words: set[str], evidence_numbers: set[str], evidence_quantities: list[Quantity]
+    ) -> SupportResult:
         words = tokenize(claim)
         if not words:
             return SupportResult(1.0)
         covered = sum(w in evidence_words for w in words) / len(words)
-        spans = [
+        spans, decided = [], []
+        for q in quantities(claim):
+            found = compare(q, evidence_quantities)
+            if found != "unknown":
+                decided.append(range(q.start, q.end))
+            if found == "mismatch":
+                spans.append(Span(start=q.start, end=q.end, text=q.text, confidence=1.0))
+        spans += [
             Span(start=m.start(), end=m.end(), text=m.group(), confidence=1.0)
             for m in _NUMBER.finditer(claim)
-            if _normalize_number(m.group()) not in evidence_numbers
+            if not any(m.start() in r for r in decided) and _normalize_number(m.group()) not in evidence_numbers
         ]
         score = 0.0 if spans else covered
         return SupportResult(round(score, 3), spans)

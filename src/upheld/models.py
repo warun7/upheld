@@ -50,6 +50,7 @@ class Verdict(StrEnum):
     SUPPORTED = "supported"
     UNSUPPORTED = "unsupported"
     WRONG_ENTITY = "wrong_entity"  # evidence reads as supporting, but a named entity in the claim is absent from the source
+    MISATTRIBUTED = "misattributed"  # what it cites doesn't back it, but another source the answer cites does
     SOURCE_MISSING = "source_missing"  # cited source doesn't exist or isn't listed
     UNVERIFIABLE = "unverifiable"  # source exists but its text couldn't be read
     UNCITED = "uncited"
@@ -86,6 +87,10 @@ class ClaimResult(BaseModel):
     cited: list[str]
     verdict: Verdict
     checks: list[CitationCheck] = Field(default_factory=list)
+    supported_by: list[CitationCheck] = Field(
+        default_factory=list,
+        description="Other sources in the answer that back the claim when what it cites doesn't, best first.",
+    )
     note: str | None = None
 
 

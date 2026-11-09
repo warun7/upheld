@@ -178,7 +178,8 @@ def make_server(
 
         Returns counts of each verdict and, for each claim that isn't supported, the cited URL, the closest passage in the
         source and why, so you can fix or drop the claim. Verdicts: supported; unsupported (the source doesn't say it);
-        wrong_entity (a name in the claim isn't in the source); source_missing (no such source listed, or a dead URL that was
+        wrong_entity (a name in the claim isn't in the source); misattributed (what it cites doesn't back it, but another
+        source in the answer does: supported_by says which); source_missing (no such source listed, or a dead URL that was
         never archived); unverifiable (the page couldn't be read, live or archived); uncited (a factual sentence with no
         citation). Pages that can't be read live are read from the Wayback Machine, and the note says so.
         """
@@ -250,6 +251,8 @@ def _problem(claim: ClaimResult, sources: dict[str, SourceReport]) -> dict[str, 
     problem: dict[str, Any] = {"claim": claim.text, "verdict": claim.verdict.value}
     if claim.checks:
         problem["citations"] = [_citation(check, sources.get(check.source_id), claim.text) for check in claim.checks]
+    if claim.supported_by:
+        problem["supported_by"] = [_citation(check, sources.get(check.source_id), claim.text) for check in claim.supported_by]
     return problem
 
 

@@ -83,8 +83,9 @@ def test_audit_citations_full_report():
 def test_sources_take_ids_by_position_or_as_numbers():
     answer = "The Eiffel Tower is 330 metres tall [1]. It was completed in 1889 [2]."
     out = call(server(), "audit_citations", {"answer": answer, "sources": ["Unrelated text.", {"id": 2, "text": EIFFEL}]}).structured_content
-    assert out["verdicts"] == {"unsupported": 1, "supported": 1}
+    assert out["verdicts"] == {"misattributed": 1, "supported": 1}  # [2] backs the claim cited to [1]
     assert out["problems"][0]["citations"][0]["source"] == "1"
+    assert out["problems"][0]["supported_by"][0]["source"] == "2"
 
 
 def test_audit_citations_reads_a_provider_response(monkeypatch):

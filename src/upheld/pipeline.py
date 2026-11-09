@@ -4,7 +4,7 @@ import asyncio
 from collections import Counter
 
 from upheld.entities import missing_entities
-from upheld.evidence import Embedder, SourceIndex, retrieval_name
+from upheld.evidence import Embedder, SourceIndex, retrieval_name, tokenize
 from upheld.models import (
     AuditReport,
     AuditRequest,
@@ -14,16 +14,22 @@ from upheld.models import (
     LinkStatus,
     Source,
     SourceReport,
+    Span,
     Summary,
     Verdict,
 )
 from upheld.parse import Claim, extract_reference_list, is_claim, split_claims, with_cited_spans
+from upheld.quantities import unit_mismatches
 from upheld.sources import FetchedSource, fetch_all
 from upheld.verify import SupportResult, Verifier
 
 # ~1,000 words of evidence per verifier call, well inside LettuceDetect's 4,096 tokens. A claim that
 # retrieves more on its own (the judge ensemble takes 10) is checked by itself.
 MAX_PASSAGES = 8
+# A claim its citations don't back is checked against at most this many of the answer's other sources: those whose
+# closest passages hold at least this share of the claim's words.
+OTHER_SOURCES = 2
+OTHER_SOURCE_COVERAGE = 0.5
 
 
 async def run_audit(
@@ -106,7 +112,68 @@ def _check_claims(
         claim_checks = [checks[i, s] for s in claim.cited]
         verdict, note = _claim_verdict(answer, ranges[i], claim.text, claim_checks, loaded, indexes, verifier, question)
         results.append(ClaimResult(**base, verdict=verdict, checks=claim_checks, note=note))
+
+    _find_other_support(claims, results, answer, ranges, loaded, indexes, verifier, question, top_k)
     return results
+
+
+def _find_other_support(
+    claims: list[Claim],
+    results: list[ClaimResult],
+    answer: str,
+    ranges: list[tuple[int, int]],
+    loaded: dict[str, FetchedSource],
+    indexes: dict[str, SourceIndex],
+    verifier: Verifier,
+    question: str | None,
+    top_k: int,
+) -> None:
+    """Check each claim that isn't supported against the answer's other sources most likely to back it.
+
+    A claim cited to [1] that [2] backs is misattributed, which is a different fix from a claim nothing backs: move the
+    marker. An uncited claim that a source backs says which marker to add. Only sources the answer cites somewhere are
+    read, so this costs no extra fetches.
+    """
+    wanted: dict[str, list[int]] = {}
+    evidence: dict[tuple[int, str], list[tuple[str, float]]] = {}
+    for i, (claim, result) in enumerate(zip(claims, results)):
+        words = set(tokenize(claim.text))
+        if result.verdict == Verdict.SUPPORTED or not words:
+            continue
+        candidates = []
+        for source_id, index in indexes.items():
+            if source_id in claim.cited:
+                continue
+            found = index.search(claim.text, top_k)
+            coverage = len(words & set(tokenize(" ".join(p for p, _ in found)))) / len(words)
+            if coverage >= OTHER_SOURCE_COVERAGE:
+                candidates.append((coverage, source_id, found))
+        for _, source_id, found in sorted(candidates, key=lambda c: -c[0])[:OTHER_SOURCES]:
+            wanted.setdefault(source_id, []).append(i)
+            evidence[i, source_id] = found
+
+    for source_id, claim_ids in wanted.items():
+        found = {i: evidence[i, source_id] for i in claim_ids}
+        for batch, passages in _batches(claim_ids, found):
+            scored = verifier.check(answer, [ranges[i] for i in batch], passages, question)
+            for i, score in zip(batch, scored):
+                check = _citation_check(source_id, claims[i].text, loaded[source_id], score, found[i], verifier)
+                if check.verdict == Verdict.SUPPORTED:
+                    results[i].supported_by.append(check)
+
+    for result in results:
+        if not result.supported_by:
+            continue
+        result.supported_by.sort(key=lambda c: -(c.support_score or 0))
+        markers = " and ".join(f"[{c.source_id}]" for c in result.supported_by)
+        if result.verdict in (Verdict.UNSUPPORTED, Verdict.WRONG_ENTITY):
+            result.verdict = Verdict.MISATTRIBUTED
+            note = f"{markers} {'backs' if len(result.supported_by) == 1 else 'back'} it instead"
+        elif result.verdict == Verdict.UNCITED:
+            note = f"no citation, but {markers} {'backs' if len(result.supported_by) == 1 else 'back'} it"
+        else:
+            note = f"{markers} in the same answer {'backs' if len(result.supported_by) == 1 else 'back'} it"
+        result.note = f"{result.note}; {note}" if result.note else note
 
 
 def _join_claims(claims: list[Claim]) -> tuple[str, list[tuple[int, int]]]:
@@ -151,20 +218,30 @@ def _citation_check(
     source_id: str, claim: str, source: FetchedSource, result: SupportResult, passages: list[tuple[str, float]], verifier: Verifier
 ) -> CitationCheck:
     missing = missing_entities(claim, source.text)
-    if result.score < verifier.threshold:
+    # Same digits, other unit: "410 metres" where the passage says "410 ft" and the page never gives 410 metres.
+    # Checked for every verifier, since a model reading "410" in both can miss the unit.
+    mismatched = unit_mismatches(claim, "\n".join(p for p, _ in passages), source.text)
+    if result.score < verifier.threshold or mismatched:
         verdict = Verdict.UNSUPPORTED
     elif missing:
         verdict = Verdict.WRONG_ENTITY
     else:
         verdict = Verdict.SUPPORTED
+    spans = list(result.spans)
+    for q, _ in mismatched:
+        if not any(sp.start < q.end and q.start < sp.end for sp in spans):
+            spans.append(Span(start=q.start, end=q.end, text=q.text, confidence=1.0))
+    notes = [f"the source gives {said.text}, not {q.text}" for q, said in mismatched]
+    if source.archived_at:
+        notes.append(f"checked against the Wayback Machine copy of {source.archived_at:%Y-%m-%d}")
     return CitationCheck(
         source_id=source_id,
         verdict=verdict,
         support_score=result.score,
-        unsupported_spans=result.spans,
+        unsupported_spans=sorted(spans, key=lambda sp: sp.start),
         missing_entities=missing,
         evidence=[Evidence(source_id=source_id, passage=p, score=s) for p, s in passages],
-        note=f"checked against the Wayback Machine copy of {source.archived_at:%Y-%m-%d}" if source.archived_at else None,
+        note="; ".join(notes) or None,
     )
 
 

@@ -1,4 +1,5 @@
 import {
+  ArrowsLeftRightIcon,
   CheckCircleIcon,
   EyeSlashIcon,
   LinkBreakIcon,
@@ -28,6 +29,12 @@ export const VERDICTS: Record<Verdict, { label: string; short: string; icon: Ico
     icon: UserSwitchIcon,
     tone: "text-warn",
   },
+  misattributed: {
+    label: "Misattributed",
+    short: "The cited source doesn't back the claim, but another source in the same answer does.",
+    icon: ArrowsLeftRightIcon,
+    tone: "text-warn",
+  },
   source_missing: {
     label: "Source missing",
     short: "The cited source isn't listed, or its URL is dead and was never archived.",
@@ -52,6 +59,7 @@ export const VERDICT_ORDER: Verdict[] = [
   "supported",
   "unsupported",
   "wrong_entity",
+  "misattributed",
   "source_missing",
   "unverifiable",
   "uncited",

@@ -94,3 +94,46 @@ def test_archived_copy_is_checked_like_a_live_page(monkeypatch):
     [source] = report.sources
     assert source.status == LinkStatus.ARCHIVED and source.archived_at.year == 2026
     assert source.archive_url.startswith("https://web.archive.org/web/20261011194435/")
+
+
+def test_claim_backed_by_another_source_in_the_answer_is_misattributed():
+    report = audit(
+        "Marie Curie won the Nobel Prize in Chemistry in 1911 [3]. "
+        "Marie Curie won the Nobel Prize in Physics in 1903 [4]. "
+        "The Eiffel Tower in Paris is 330 metres tall [1]. "
+        "The Eiffel Tower was completed in 1889. "
+        "Tirzepatide reduced body weight by 20.9% over 72 weeks."
+    )
+    chemistry, physics, height, completed, tirzepatide = report.claims
+    assert chemistry.verdict == physics.verdict == Verdict.MISATTRIBUTED
+    assert [c.source_id for c in chemistry.supported_by] == ["4"] and chemistry.note == "[4] backs it instead"
+    assert [c.source_id for c in physics.supported_by] == ["3"]
+    assert chemistry.checks[0].verdict == Verdict.UNSUPPORTED  # the citation itself is still wrong
+    assert height.verdict == Verdict.SUPPORTED and height.supported_by == []
+    # An uncited claim is told which marker to add.
+    assert completed.verdict == Verdict.UNCITED and [c.source_id for c in completed.supported_by] == ["1"]
+    assert completed.note == "no citation, but [1] backs it"
+    # Only sources the answer cites are read, so [2], listed but never cited, backs nothing.
+    assert tirzepatide.verdict == Verdict.UNCITED and tirzepatide.supported_by == []
+    assert report.summary.claim_verdicts == {"misattributed": 2, "supported": 1, "uncited": 2}
+
+
+class AlwaysSupported:
+    """A verifier that reads "410" in both and misses the unit, as models can."""
+
+    name, threshold, top_k = "always", 0.5, 3
+
+    def check(self, answer, claims, passages, question=None):
+        from upheld.verify import SupportResult
+
+        return [SupportResult(1.0) for _ in claims]
+
+
+def test_same_number_in_another_unit_is_unsupported_for_any_verifier():
+    page = "The tower is 330 m (1,083 ft) tall. Its base is 125 m (410 ft) on a side."
+    req = AuditRequest(answer="The base is 410 metres wide [1]. The base is 125 metres wide [1].", sources=[Source(id="1", text=page)])
+    wrong, right = asyncio.run(run_audit(req, AlwaysSupported(), fetch=False)).claims
+    assert wrong.verdict == Verdict.UNSUPPORTED
+    assert wrong.checks[0].note == "the source gives 410 ft, not 410 metres"
+    assert [s.text for s in wrong.checks[0].unsupported_spans] == ["410 metres"]
+    assert right.verdict == Verdict.SUPPORTED

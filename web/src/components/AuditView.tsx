@@ -157,6 +157,9 @@ function trimPassage(text: string, max = 300) {
   return lead + (t.length > max ? `${t.slice(0, max).replace(/\s\S*$/, "")}...` : t);
 }
 
+/** A report note ("no citation, but [1] backs it") as a sentence. */
+const sentence = (note: string) => `${note[0].toUpperCase()}${note.slice(1)}${/[.!?]$/.test(note) ? "" : "."}`;
+
 /** Everything upheld found for one claim: verdict, flagged words, score and evidence per citation. */
 export function ClaimDetail({ claim, report }: { claim: ClaimResult; report: AuditReport }) {
   const threshold = thresholdOf(report.verifier);
@@ -171,7 +174,7 @@ export function ClaimDetail({ claim, report }: { claim: ClaimResult; report: Aud
         <ClaimWithSpans claim={claim} />
       </p>
       {claim.checks.length === 0 && (
-        <p className="text-sm text-ink-2">{claim.note ?? "No citation, so there's nothing to check it against."}</p>
+        <p className="text-sm text-ink-2">{claim.note ? sentence(claim.note) : "No citation, so there's nothing to check it against."}</p>
       )}
       {claim.checks.map((check) => {
         const src = byId.get(check.source_id);
@@ -234,6 +237,7 @@ export function ClaimDetail({ claim, report }: { claim: ClaimResult; report: Aud
           </div>
         );
       })}
+      {claim.checks.length > 0 && claim.note && <p className="border-t border-line pt-4 text-sm text-ink-2">{sentence(claim.note)}</p>}
     </div>
   );
 }

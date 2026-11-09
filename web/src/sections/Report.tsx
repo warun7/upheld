@@ -15,6 +15,7 @@ const DOT: Record<ClaimResult["verdict"], string> = {
   supported: "bg-accent",
   unsupported: "bg-bad",
   wrong_entity: "bg-warn",
+  misattributed: "bg-warn",
   source_missing: "bg-bad",
   unverifiable: "bg-ink-3",
   uncited: "bg-ink-3",
@@ -25,7 +26,7 @@ type Filter = "all" | "supported" | "flagged" | "unreadable";
 const FILTERS: { id: Filter; label: string; match: (v: Verdict) => boolean }[] = [
   { id: "all", label: "All", match: () => true },
   { id: "supported", label: "Supported", match: (v) => v === "supported" },
-  { id: "flagged", label: "Flagged", match: (v) => v === "unsupported" || v === "wrong_entity" || v === "source_missing" },
+  { id: "flagged", label: "Flagged", match: (v) => v === "unsupported" || v === "wrong_entity" || v === "misattributed" || v === "source_missing" },
   { id: "unreadable", label: "Can't read", match: (v) => v === "unverifiable" },
 ];
 

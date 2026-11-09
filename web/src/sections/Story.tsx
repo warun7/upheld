@@ -64,11 +64,11 @@ const PASSES = [
   },
   {
     verb: "Verify",
-    body: "MiniCheck, word overlap with exact number matching and LettuceDetect, combined by a logistic regression with four fitted numbers. With a GPU and the judge installed, the Granite Guardian 3.3 8B judge instead.",
+    body: "MiniCheck, word overlap with numbers matched (units included) and LettuceDetect, combined by a logistic regression with four fitted numbers. With a GPU and the judge installed, the Granite Guardian 3.3 8B judge instead.",
     artifact: [
-      ["score", "0.24 < 0.50", ""],
+      ["score", "0.30 < 0.50", ""],
       ["verdict", "unsupported", ""],
-      ["flagged", "384 metres", ""],
+      ["flagged", "384", ""],
     ],
   },
 ];

@@ -25,6 +25,7 @@ VERDICT_STYLE = {
     Verdict.SUPPORTED: "green",
     Verdict.UNSUPPORTED: "red",
     Verdict.WRONG_ENTITY: "magenta",
+    Verdict.MISATTRIBUTED: "magenta",
     Verdict.SOURCE_MISSING: "red bold",
     Verdict.UNVERIFIABLE: "yellow",
     Verdict.UNCITED: "dim",

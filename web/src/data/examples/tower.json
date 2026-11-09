@@ -40,7 +40,7 @@
           {
             "source_id": "1",
             "verdict": "supported",
-            "support_score": 0.826,
+            "support_score": 0.828,
             "unsupported_spans": [],
             "missing_entities": [],
             "evidence": [
@@ -63,6 +63,7 @@
             "note": null
           }
         ],
+        "supported_by": [],
         "note": null
       },
       {
@@ -78,13 +79,13 @@
           {
             "source_id": "1",
             "verdict": "unsupported",
-            "support_score": 0.238,
+            "support_score": 0.304,
             "unsupported_spans": [
               {
-                "start": 3,
-                "end": 25,
-                "text": "stands 384 metres tall",
-                "confidence": 0.763
+                "start": 10,
+                "end": 13,
+                "text": "384",
+                "confidence": 1.0
               }
             ],
             "missing_entities": [],
@@ -108,6 +109,7 @@
             "note": null
           }
         ],
+        "supported_by": [],
         "note": null
       },
       {
@@ -146,6 +148,7 @@
             "note": null
           }
         ],
+        "supported_by": [],
         "note": null
       },
       {
@@ -193,6 +196,7 @@
             "note": null
           }
         ],
+        "supported_by": [],
         "note": null
       },
       {
@@ -215,6 +219,7 @@
             "note": "HTTP 404; never archived"
           }
         ],
+        "supported_by": [],
         "note": null
       },
       {
@@ -225,25 +230,58 @@
         "cited": [],
         "verdict": "uncited",
         "checks": [],
-        "note": null
+        "supported_by": [
+          {
+            "source_id": "1",
+            "verdict": "supported",
+            "support_score": 0.85,
+            "unsupported_spans": [],
+            "missing_entities": [],
+            "evidence": [
+              {
+                "source_id": "1",
+                "passage": "Metro station is Bir-Hakeim and the nearest RER station is Champ de Mars-Tour Eiffel.[113] The tower itself is located at the intersection of the quai Branly and the Pont d'Iéna. Popularity More than 300 million people have visited the tower since it was completed in 1889.[114][5] In 2015, there were 6.91 million visitors.[115] The tower is the most-visited paid monument in the world.[7] An average of 25,000 people ascend the tower every day (which can result in long queues).[116] Illumination copyright The tower and its image have been in the public domain since 1993, 70 years after Eiffel's death.[117] In June 1990, a French court ruled that a special lighting display on the tower in 1989 to mark the tower's 100th anniversary was an \"original visual creation\" protected by copyright.",
+                "score": 1.0
+              },
+              {
+                "source_id": "1",
+                "passage": "world.[5] The tower received 5,889,000 visitors in 2022.[6] The Eiffel Tower is the most visited monument with an entrance fee in the world:[7] 6.91 million people ascended it in 2015. It was designated a monument historique in 1964, and was named part of a UNESCO World Heritage Site (\"Paris, Banks of the Seine\") in 1991.[8] The tower is 330 metres (1,083 ft) tall,[9] about the same height as an 81-storey building, and the tallest structure in Paris. Its base is square, measuring 125 metres (410 ft) on each side.",
+                "score": 0.984
+              },
+              {
+                "source_id": "1",
+                "passage": "for \"Iron Lady\") for its use of wrought iron, it was constructed as the centrepiece of the 1889 World's Fair, and to crown the centennial anniversary of the French Revolution. Although initially criticised by some of France's leading artists and intellectuals for its design, it has since become a global cultural icon of France and one of the most recognisable structures in the world.[5] The tower received 5,889,000 visitors in 2022.[6] The Eiffel Tower is the most visited monument with an entrance fee in the world:[7] 6.91 million people ascended it in 2015.",
+                "score": 0.968
+              }
+            ],
+            "note": null
+          }
+        ],
+        "note": "no citation, but [1] backs it"
       }
     ],
     "sources": [
       {
         "id": "1",
         "url": "https://en.wikipedia.org/wiki/Eiffel_Tower",
+        "resolved_url": null,
         "status": "live",
         "http_status": 200,
         "chars": 65753,
-        "note": null
+        "note": null,
+        "archived_at": null,
+        "archive_url": null
       },
       {
         "id": "2",
         "url": "https://en.wikipedia.org/wiki/Eiffel_Tower_repainting_schedule",
+        "resolved_url": null,
         "status": "likely_fabricated",
         "http_status": 404,
         "chars": 0,
-        "note": "HTTP 404; never archived"
+        "note": "HTTP 404; never archived",
+        "archived_at": null,
+        "archive_url": null
       }
     ]
   }

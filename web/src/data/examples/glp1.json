@@ -37,7 +37,7 @@
           {
             "source_id": "1",
             "verdict": "supported",
-            "support_score": 0.737,
+            "support_score": 0.697,
             "unsupported_spans": [],
             "missing_entities": [],
             "evidence": [
@@ -60,6 +60,7 @@
             "note": null
           }
         ],
+        "supported_by": [],
         "note": null
       },
       {
@@ -81,7 +82,7 @@
                 "start": 0,
                 "end": 64,
                 "text": "In a 72-week trial, Ozempic produced average weight loss of 20.9",
-                "confidence": 0.993
+                "confidence": 0.988
               }
             ],
             "missing_entities": [],
@@ -105,6 +106,7 @@
             "note": null
           }
         ],
+        "supported_by": [],
         "note": null
       },
       {
@@ -120,7 +122,7 @@
           {
             "source_id": "1",
             "verdict": "supported",
-            "support_score": 0.692,
+            "support_score": 0.682,
             "unsupported_spans": [],
             "missing_entities": [],
             "evidence": [
@@ -143,6 +145,7 @@
             "note": null
           }
         ],
+        "supported_by": [],
         "note": null
       },
       {
@@ -158,13 +161,13 @@
           {
             "source_id": "1",
             "verdict": "unsupported",
-            "support_score": 0.461,
+            "support_score": 0.436,
             "unsupported_spans": [
               {
-                "start": 21,
-                "end": 32,
-                "text": "semaglutide",
-                "confidence": 0.767
+                "start": 0,
+                "end": 74,
+                "text": "Most participants on semaglutide reported no gastrointestinal side effects",
+                "confidence": 0.964
               }
             ],
             "missing_entities": [],
@@ -188,6 +191,7 @@
             "note": null
           }
         ],
+        "supported_by": [],
         "note": null
       }
     ],
@@ -198,7 +202,7 @@
         "resolved_url": null,
         "status": "live",
         "http_status": 200,
-        "chars": 83966,
+        "chars": 83985,
         "note": null,
         "archived_at": null,
         "archive_url": null

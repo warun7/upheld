@@ -29,16 +29,19 @@ The site is static; a hosted playground would need a model server and isn't depl
 
 ## What it reports
 
-Each citation gets one verdict, and each claim gets the best verdict among its citations:
+Each citation gets one verdict, and each claim gets the best verdict among its citations. `misattributed` is for claims only:
 
 | Verdict | Meaning |
 |---|---|
 | `supported` | The cited source backs the claim |
 | `unsupported` | The source is real and readable, but doesn't back the claim. Flagged spans show which part. |
 | `wrong_entity` | The evidence reads as supporting, but a named entity in the claim appears nowhere in the source (e.g. drug Y's trial cited for drug X) |
+| `misattributed` | The cited source doesn't back the claim, but another source in the same answer does. `supported_by` says which, so the fix is moving the marker |
 | `source_missing` | Cited source isn't listed, or the URL is dead and was never archived (likely fabricated) |
 | `unverifiable` | The source exists but couldn't be read, and neither could an archived copy (blocked, no text) |
 | `uncited` | A factual-looking sentence with no citation |
+
+An uncited claim that one of the answer's sources backs keeps its verdict, and its note says which marker to add.
 
 A page upheld can't read live, because it's blocked or dead, is read from the Wayback Machine's newest copy instead and judged like a live page. The report says so and gives the copy's date.
 
@@ -280,12 +283,14 @@ The models load on the first call, in about half a minute once they're downloade
 3. **Retrieve evidence**: chunk each source into ~120-word windows and pick the top 3 per claim, or the top 10 for the judge ensemble, which turns more of the page into fewer false alarms (see [Fresh 2026 benchmark](#fresh-2026-benchmark)). Hybrid mode (the default when the `dense` extra is installed) ranks passages with both BM25 and `bge-small-en-v1.5` embeddings and merges the rankings with reciprocal rank fusion, so paraphrases aren't missed. `--retrieval bm25` uses keywords only.
 4. **Verify**: the default verifier combines three signals with a logistic regression whose four numbers were fit on 2,000 AttributionBench training rows:
    - [MiniCheck-Flan-T5-Large](https://arxiv.org/abs/2404.10774) (770M), trained to judge whether a document supports every part of a claim. Long sources are split into ~500-word chunks and the claim takes its best chunk.
-   - Word overlap, with every number in the claim required to appear in the evidence.
+   - Word overlap, with every number in the claim required to appear in the evidence. A length, mass, speed or time can appear in another unit ("125 m" for "410 ft"), and the same digits in another unit don't count.
    - LettuceDetect, run once per source over the **whole answer** (it was trained on full responses; scored as isolated sentences it flagged true claims with 0.89 hallucination probability). Its flagged tokens, or else the mismatched numbers, become the highlighted spans.
 
    `--verifier ensemble+judge` adds a fourth signal, refit with the other three: [Granite Guardian 3.3 8B](https://huggingface.co/ibm-granite/granite-guardian-3.3-8b), an LLM trained to judge whether a response is grounded in its documents, run locally with llama.cpp. It reads the claim against each ~1,500-word chunk of the evidence and takes the best.
 5. **Entity check**: flag named entities in the claim that appear nowhere in the source. This gets its own verdict, `wrong_entity`, because it's a heuristic with a known false-alarm rate (see [How good is it](#how-good-is-it)).
-6. **Combine**: a claim citing several sources that individually fail is re-checked against them together (multi-hop claims).
+6. **Unit check**, for every verifier: a citation is unsupported when the claim gives a length, mass, speed or time whose number the passages give only in another unit ("410 metres" against "410 ft") and the page never states the claim's quantity. Models read "410" in both and miss the unit. Across 7,079 labeled citations (AttributionBench's dev and test splits and a 2,000-row train sample, plus the fresh benchmark) it fired 4 times, all on citations labeled unsupported, though once for the wrong reason: a weight in lbs read against a dose in mg.
+7. **Combine**: a claim citing several sources that individually fail is re-checked against them together (multi-hop claims).
+8. **Look elsewhere**: a claim that still isn't supported, cited or not, is checked against up to two of the answer's other sources whose closest passages hold at least half its words. If one backs it, a cited claim is `misattributed` and an uncited one says which marker to add. Only sources the answer cites somewhere are read, so this fetches nothing new.
 
 Fetching is guarded against SSRF (no private, loopback or metadata addresses, checked on every redirect) since a hosted API fetches URLs taken from untrusted text. `--allow-private` lifts this for local use.
 
@@ -450,7 +455,7 @@ The labels in `labels-claude.jsonl` came from Claude subagents given `labeling-g
 - **One-step inferences fail without the judge.** In `examples/glp1.json` the source reports "the mean change in body weight ... was -14.9%" and the answer says "an average weight loss of 14.9%". The ensemble scores that 0.42 and marks it unsupported, as is the matching placebo claim. The judge alone passes both (0.99 and 1.00), and so does `--verifier ensemble+judge` (0.70 and 0.71). In `examples/eiffel.md` both ensembles mark the true claim "intended to stand for only 20 years" unsupported (0.44 with the judge ensemble): retrieval finds "slated for dismantling in 1909", and only the judge alone connects that to 20 years (0.23, above its 0.06 threshold).
 - **Wrong-party claims slip through** about two times in three when the wrong name is also in the source, and about one time in three with the judge (see [Edited claims](#edited-claims)).
 - **Contradictions in the source's own words can pass without the judge.** "The Great Wall of China is visible from the Moon with the naked eye", cited to its Wikipedia article, scores 0.57 and is marked supported, though the retrieved passage says it cannot be seen: word overlap and LettuceDetect outvote MiniCheck. The judge ensemble marks it unsupported (0.45).
-- **Numbers are matched as digits, not quantities.** "It stands 410 metres tall" passes against the Eiffel Tower article (0.64) because the page gives the base as 410 ft. It passes with the judge too (0.52).
+- **Units are only compared for length, mass, speed and time.** Money, temperatures, volumes, areas and percentages are matched as digits, so "$410" passes against "€410". A claim whose quantity the page states anywhere passes the unit check, even if the passage the verifier read gives a different figure.
 - **ExpertQA-style claims** (long, technical, expert-written) score 57.8 macro-F1, or 59.3 with the judge, so expect more mistakes on specialist content.
 - **Entity check is a heuristic** (capitalized phrases + word frequency), not NER. It false-alarms on names the source writes differently and misses lowercase entities.
 - **Speed.** The ensemble takes roughly 0.3–1 s per claim per source on an Apple M5 Pro and is several times slower on CPU. MiniCheck dominates. The judge ensemble reads 10 passages per claim, so it takes about 2.5–3 s per claim per source with Metal (the judge about 2 s of that, against 0.75 s on 3 passages), and needs about 9 GB of free memory. The judge alone reads 3 passages, about 0.75 s per claim per source with Metal; `auto` picks it only when llama.cpp can use a GPU. `--verifier lexical` is instant but much weaker.

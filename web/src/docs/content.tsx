@@ -643,6 +643,7 @@ const report: DocPage = {
         "evidence": [{"source_id": "1", "passage": "...", "score": 1.0}],
         "note": null
       }],
+      "supported_by": [],
       "note": null
     }
   ],
@@ -658,10 +659,17 @@ const report: DocPage = {
         rows={[
           ["verifier, retrieval", "What produced this report, threshold included. Scores aren't comparable across verifiers."],
           ["claims[].start, end", "Character offsets of the claim in the answer, for highlighting. For a provider's response, in the answer text upheld assembled from it."],
-          ["claims[].verdict", <>The best verdict among the claim's citations. A claim whose citations each fail is re-checked against them together, for facts that span two sources.</>],
+          ["claims[].verdict", <>The best verdict among the claim's citations. A claim whose citations each fail is re-checked against them together, for facts that span two sources, then against the answer's other sources.</>],
           ["checks[]", "One per citation: that source's verdict, the support score (0 to 1), and the passages it was judged against."],
           ["unsupported_spans", "Character offsets within the claim text of the words the source doesn't back."],
           ["missing_entities", <>Names in the claim that appear nowhere in the source. When the score would otherwise pass, they make the verdict <C>wrong_entity</C>.</>],
+          [
+            "claims[].supported_by",
+            <>
+              For a claim that isn't supported, the checks of other sources in the answer that back it, best first. They make an <C>unsupported</C> or{" "}
+              <C>wrong_entity</C> claim <C>misattributed</C>; an <C>uncited</C> claim keeps its verdict, and its <C>note</C> says which marker to add.
+            </>,
+          ],
           ["sources[].status", <>Whether each cited source could be read. See <A href="#verdicts">link statuses</A>.</>],
           ["sources[].resolved_url", "Where the URL redirected to, if it did. Gemini cites pages through Google redirect links, and this is the page."],
           ["sources[].archived_at, archive_url", <>Set when the text came from a Wayback Machine copy: when the copy was taken, and where to see it. Each check against that source says so in its <C>note</C>.</>],
@@ -673,11 +681,23 @@ const report: DocPage = {
 
 const VERDICT_NOTE: Record<Verdict, ReactNode> = {
   supported: "The cited source backs the claim.",
-  unsupported: "The source is real and readable but doesn't back the claim. Flagged spans show which part.",
+  unsupported: (
+    <>
+      The source is real and readable but doesn't back the claim. Flagged spans show which part. A length, mass, speed or time whose number the source
+      gives in another unit (<C>410 metres</C> where it says <C>410 ft</C>) is unsupported whatever the verifier scores, and the note says what the source
+      gives.
+    </>
+  ),
   wrong_entity: (
     <>
       The evidence reads as supporting, but a name in the claim appears nowhere in the source: drug Y's trial cited for drug X. It's a heuristic with a known
       false-alarm rate (abbreviations, partial names), so treat it as a prompt to look.
+    </>
+  ),
+  misattributed: (
+    <>
+      The cited source doesn't back the claim, but another source in the same answer does: the marker is on the wrong source. <C>supported_by</C> says
+      which. Only sources the answer cites somewhere are checked, at most two per claim.
     </>
   ),
   source_missing: "The cited source isn't listed, or its URL is dead and was never archived: likely made up.",
@@ -690,7 +710,9 @@ const verdicts: DocPage = {
   title: "Verdicts and link statuses",
   body: (
     <>
-      <p>Each citation gets one verdict, and each claim gets the best verdict among its citations.</p>
+      <p>
+        Each citation gets one verdict, and each claim gets the best verdict among its citations. <C>misattributed</C> is for claims only.
+      </p>
       <Table
         mono={false}
         head={["Verdict", "Code", "Meaning"]}
