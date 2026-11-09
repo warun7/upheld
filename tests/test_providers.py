@@ -16,6 +16,7 @@ from upheld.sources import FetchedSource
 FIXTURES = Path(__file__).parent / "fixtures"
 KEY = "https://www.toureiffel.paris/en/the-monument/key-figures"
 WIKI = "https://en.wikipedia.org/wiki/Eiffel_Tower"
+BRITANNICA = "https://www.britannica.com/topic/Eiffel-Tower-Paris-France"
 PAGES = {
     KEY: "The Eiffel Tower is 330 metres tall with its antennas, and weighs 10,100 tonnes in all.",
     WIKI: "The Eiffel Tower was completed in 1889 as the entrance to the 1889 World's Fair. It is named after the engineer Gustave Eiffel.",
@@ -84,8 +85,9 @@ def test_anthropic_cited_blocks_are_claims():
 
 def test_perplexity_markers_number_its_search_results():
     req = upheld.from_perplexity(load("perplexity"))
-    # The fourth search result is never cited, so it isn't fetched.
     assert [(s.id, s.url) for s in req.sources] == [("1", KEY), ("2", WIKI), ("3", "https://en.wikipedia.org/wiki/Exposition_Universelle_(1889)")]
+    # The fourth search result is never cited: it's read only if a cited claim fails.
+    assert [(s.id, s.url) for s in req.seen_sources] == [("4", BRITANNICA)]
     assert req.sources[0].title == "Key figures - Eiffel Tower"
     assert claims(req) == [
         ("The Eiffel Tower is 330 metres tall, including its antennas.", ["1", "2"]),
@@ -162,6 +164,32 @@ def test_gemini_interactions_api():
     }
     req = from_response(response)
     assert spans(req) == [("The Eiffel Tower is 330 metres tall.", ["1"]), ("It was completed in 1889.", ["2"])]
+
+
+def test_search_results_the_answer_doesnt_cite_are_seen_sources():
+    anthropic = load("anthropic")
+    first_search = anthropic["content"][2]["content"]
+    first_search.append({"type": "web_search_result", "url": BRITANNICA, "title": "Eiffel Tower | Britannica"})
+    anthropic["content"].insert(3, {"type": "web_search_tool_result", "content": {"type": "web_search_tool_result_error"}})
+    req = upheld.from_anthropic(anthropic)
+    assert [s.id for s in req.sources] == ["1", "2"]
+    assert [(s.id, s.url, s.title) for s in req.seen_sources] == [("3", BRITANNICA, "Eiffel Tower | Britannica")]
+
+    gemini = load("gemini")
+    chunks = gemini["candidates"][0]["groundingMetadata"]["groundingChunks"]
+    chunks.append({"web": {"uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/unused", "title": "history.com"}})
+    req = upheld.from_gemini(gemini)
+    assert [(s.id, s.title) for s in req.seen_sources] == [("4", "history.com")]
+
+    # OpenAI lists a search's sources when the request includes "web_search_call.action.sources".
+    openai = load("openai")
+    openai["output"][0]["action"]["sources"] = [
+        {"type": "url", "url": f"{WIKI}?utm_source=openai"},
+        {"type": "url", "url": f"{BRITANNICA}?utm_source=openai"},
+    ]
+    req = upheld.from_openai(openai)
+    assert [(s.id, s.url) for s in req.seen_sources] == [("3", BRITANNICA)]
+    assert upheld.from_openai(load("openai")).seen_sources == []
 
 
 def test_unknown_shapes_and_empty_answers_are_refused():

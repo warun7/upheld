@@ -34,6 +34,7 @@ export interface Evidence {
   source_id: string;
   passage: string;
   score: number;
+  link?: string | null;
 }
 
 export interface CitationCheck {
@@ -54,7 +55,7 @@ export interface ClaimResult {
   cited: string[];
   verdict: Verdict;
   checks: CitationCheck[];
-  /** Other sources in the answer that back the claim when what it cites doesn't, best first. */
+  /** Other sources that back the claim when what it cites doesn't, best first: cited elsewhere, or found by its search. */
   supported_by?: CitationCheck[];
   note: string | null;
 }
@@ -68,6 +69,8 @@ export interface SourceReport {
   note: string | null;
   archived_at?: string | null;
   archive_url?: string | null;
+  /** False for a page the answer's search returned but it doesn't cite, listed because it backs a claim. */
+  cited?: boolean;
 }
 
 export interface AuditReport {

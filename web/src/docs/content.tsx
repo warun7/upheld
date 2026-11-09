@@ -179,7 +179,7 @@ report = upheld.audit(response, question=question)`}</Code>
         rows={[
           [
             "OpenAI Responses API, or Chat Completions with web search",
-            <><C>url_citation</C> annotations: the URL, its title, and the range of the link the model wrote.</>,
+            <><C>url_citation</C> annotations: the URL, its title, and the range of the link the model wrote. The uncited pages its search returned are listed only when the request asked for <C>web_search_call.action.sources</C> in <C>include</C>.</>,
             <>Sentences. OpenAI's range covers the link after a claim, not the claim, so the link becomes a <C>[n]</C> marker. <C>utm_source=openai</C> is dropped from the URLs so the Wayback Machine can find them.</>,
           ],
           [
@@ -200,6 +200,12 @@ report = upheld.audit(response, question=question)`}</Code>
           ["Gemini Interactions API", <><C>url_citation</C> annotations over the cited text.</>, <>Each annotated range.</>],
         ]}
       />
+      <p>
+        Every provider's response also carries the pages its search returned that the answer doesn't cite, as <C>seen_sources</C>: the search
+        result blocks for Anthropic, the numbered results a Perplexity answer didn't use, the chunks Gemini didn't ground on. OpenAI lists them only when
+        the request asks for <C>web_search_call.action.sources</C>; without that, an OpenAI response has no <C>seen_sources</C> and claims are only checked
+        against what the answer cites.
+      </p>
       <p>
         A cited range too short to be a claim on its own, such as a name, is widened to the sentence it's in. Sentences outside every cited range are still reported,
         as <C>uncited</C> when they read as claims. Claim offsets refer to the answer text upheld assembled, <C>upheld.from_…(response).answer</C>.
@@ -679,6 +685,15 @@ const input: DocPage = {
             "list, optional",
             <>Character ranges of the answer marked as cited, <C>{'{"start": 0, "end": 40, "cited": ["1"]}'}</C>. Each is checked as one claim, in place of the sentences it overlaps. Filled in from a provider's response; up to 500.</>,
           ],
+          [
+            "seen_sources",
+            "list, optional",
+            <>
+              Pages the answer's web search returned that it doesn't cite, shaped like <C>sources</C>, with ids that don't clash. When a cited claim fails, the first 10
+              are read to see whether one backs it. Filled in from a provider's response (OpenAI only when the request asked for
+              <C>web_search_call.action.sources</C>); up to 100.
+            </>,
+          ],
         ]}
       />
     </>
@@ -710,7 +725,7 @@ const report: DocPage = {
         "source_id": "1", "verdict": "unsupported", "support_score": 0.268,
         "unsupported_spans": [{"start": 0, "end": 54, "text": "Its design was led by the architect Frank Lloyd Wright", "confidence": 1.0}],
         "missing_entities": ["Frank Lloyd Wright"],
-        "evidence": [{"source_id": "1", "passage": "...", "score": 1.0}],
+        "evidence": [{"source_id": "1", "passage": "...", "score": 1.0, "link": "https://en.wikipedia.org/wiki/Eiffel_Tower#:~:text=..."}],
         "note": null
       }],
       "supported_by": [],
@@ -719,9 +734,9 @@ const report: DocPage = {
   ],
   "sources": [
     {"id": "1", "url": "https://en.wikipedia.org/wiki/Eiffel_Tower", "resolved_url": null, "status": "live", "http_status": 200, "chars": 65753,
-     "note": null, "archived_at": null, "archive_url": null},
+     "note": null, "archived_at": null, "archive_url": null, "cited": true},
     {"id": "2", "url": "https://en.wikipedia.org/wiki/Eiffel_Tower_repainting_schedule", "resolved_url": null, "status": "likely_fabricated",
-     "http_status": 404, "chars": 0, "note": "HTTP 404; never archived", "archived_at": null, "archive_url": null}
+     "http_status": 404, "chars": 0, "note": "HTTP 404; never archived", "archived_at": null, "archive_url": null, "cited": true}
   ]
 }`}</Code>
       <Table
@@ -731,18 +746,28 @@ const report: DocPage = {
           ["claims[].start, end", "Character offsets of the claim in the answer, for highlighting. For a provider's response, in the answer text upheld assembled from it."],
           ["claims[].verdict", <>The best verdict among the claim's citations. A claim whose citations each fail is re-checked against them together, for facts that span two sources, then against the answer's other sources.</>],
           ["checks[]", "One per citation: that source's verdict, the support score (0 to 1), and the passages it was judged against."],
+          [
+            "evidence[].link",
+            <>
+              The source's URL with a text fragment (<C>#:~:text=</C>) that opens the page scrolled to the passage's sentence closest to the claim, highlighted.
+              For an archived source, the Wayback Machine copy. <C>null</C> for text you gave and for PDFs.
+            </>,
+          ],
           ["unsupported_spans", "Character offsets within the claim text of the words the source doesn't back."],
           ["missing_entities", <>Names in the claim that appear nowhere in the source. When the score would otherwise pass, they make the verdict <C>wrong_entity</C>.</>],
           [
             "claims[].supported_by",
             <>
-              For a claim that isn't supported, the checks of other sources in the answer that back it, best first. They make an <C>unsupported</C> or{" "}
-              <C>wrong_entity</C> claim <C>misattributed</C>; an <C>uncited</C> claim keeps its verdict, and its <C>note</C> says which marker to add.
+              For a claim that isn't supported, the checks of other sources that back it, best first: sources the answer cites elsewhere, and for a cited claim,
+              pages its search returned that it doesn't cite. They make an <C>unsupported</C> or <C>wrong_entity</C> claim <C>misattributed</C>; an{" "}
+              <C>uncited</C> claim keeps its verdict, and its <C>note</C> says which marker to add. When the search's pages were read and none backs the claim,
+              its <C>note</C> says so: the claim came from neither its citations nor its search.
             </>,
           ],
           ["sources[].status", <>Whether each cited source could be read. See <A href="#verdicts">link statuses</A>.</>],
           ["sources[].resolved_url", "Where the URL redirected to, if it did. Gemini cites pages through Google redirect links, and this is the page."],
           ["sources[].archived_at, archive_url", <>Set when the text came from a Wayback Machine copy: when the copy was taken, and where to see it. Each check against that source says so in its <C>note</C>.</>],
+          ["sources[].cited", <><C>false</C> for a page the answer's search returned but it doesn't cite, listed because it backs a claim.</>],
         ]}
       />
     </>
@@ -766,8 +791,8 @@ const VERDICT_NOTE: Record<Verdict, ReactNode> = {
   ),
   misattributed: (
     <>
-      The cited source doesn't back the claim, but another source in the same answer does: the marker is on the wrong source. <C>supported_by</C> says
-      which. Only sources the answer cites somewhere are checked, at most two per claim.
+      The cited source doesn't back the claim, but another source does: the marker is on the wrong source. <C>supported_by</C> says which. The answer's
+      other sources are checked, and for a provider's response, the first 10 pages its search returned that it doesn't cite, at most two per claim.
     </>
   ),
   source_missing: "The cited source isn't listed, or its URL is dead and was never archived: likely made up.",

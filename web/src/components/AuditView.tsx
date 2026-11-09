@@ -1,6 +1,6 @@
 import { ArrowUpRightIcon } from "@phosphor-icons/react";
 import { Fragment, type ReactNode } from "react";
-import type { AuditReport, ClaimResult, SourceReport, Verdict } from "../lib/report";
+import type { AuditReport, CitationCheck, ClaimResult, SourceReport, Verdict } from "../lib/report";
 import { LINK_STATUS, VERDICTS, VerdictLabel } from "../lib/verdicts";
 
 const MARKER = /\[(\^?\d+(?:\s*,\s*\^?\d+)*)\]|\[([^\]]+)\]\((https?:[^)\s]+)\)/g;
@@ -160,6 +160,90 @@ function trimPassage(text: string, max = 300) {
 /** A report note ("no citation, but [1] backs it") as a sentence. */
 const sentence = (note: string) => `${note[0].toUpperCase()}${note.slice(1)}${/[.!?]$/.test(note) ? "" : "."}`;
 
+/** One source checked against a claim: its link status, score, flagged names and closest passage. */
+function CheckDetail({
+  check,
+  src,
+  threshold,
+  heading,
+}: {
+  check: CitationCheck;
+  src: SourceReport | undefined;
+  threshold: number;
+  heading?: string;
+}) {
+  const best = check.evidence[0];
+  return (
+    <div className="space-y-3 border-t border-line pt-4">
+      {heading && <p className="label">{heading}</p>}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+        <span className="font-mono text-xs text-ink-3">[{check.source_id}]</span>
+        {src?.url ? (
+          <a href={src.url} className="inline-flex min-w-0 items-center gap-1 truncate text-ink-2 hover:text-ink" target="_blank" rel="noreferrer">
+            <span className="truncate">{sourceLabel(src, check.source_id)}</span>
+            <ArrowUpRightIcon size={12} weight="bold" className="shrink-0" aria-hidden />
+          </a>
+        ) : (
+          <span className="text-ink-2">{sourceLabel(src, check.source_id)}</span>
+        )}
+      </div>
+      {src && (
+        <p className={`font-mono text-xs ${LINK_STATUS[src.status].tone}`}>
+          {src.status}
+          {src.note && ` · ${src.note}`}
+        </p>
+      )}
+      {check.support_score !== null && check.verdict !== "source_missing" && (
+        <ScoreScale score={check.support_score} threshold={threshold} />
+      )}
+      {check.missing_entities.length > 0 && (
+        <p className="text-sm text-ink-2">
+          Not in the source:{" "}
+          {check.missing_entities.map((e, i) => (
+            <Fragment key={e}>
+              {i > 0 && ", "}
+              <span className="font-medium text-warn">{e}</span>
+            </Fragment>
+          ))}
+        </p>
+      )}
+      {best && (
+        <blockquote className="border-l-2 border-line-strong bg-bg px-4 py-3 text-sm leading-relaxed text-ink-2">
+          <span className="mb-1 flex items-baseline justify-between gap-3 text-xs font-medium text-ink-3">
+            <span>Closest passage in the source</span>
+            <span className="font-mono">score {best.score.toFixed(2)}</span>
+          </span>
+          {trimPassage(best.passage)}
+          {best.link && (
+            <a
+              href={best.link}
+              className="mt-2 flex w-fit items-center gap-1 text-xs font-medium text-ink-2 underline decoration-line-strong underline-offset-4 hover:text-ink hover:decoration-accent"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open the page at this passage
+              <ArrowUpRightIcon size={12} weight="bold" className="shrink-0" aria-hidden />
+            </a>
+          )}
+        </blockquote>
+      )}
+      {check.note && (
+        <p className="text-sm text-ink-3">
+          {check.note}
+          {src?.archive_url && (
+            <>
+              {" · "}
+              <a href={src.archive_url} className="text-ink-2 underline hover:text-ink" target="_blank" rel="noreferrer">
+                open the copy
+              </a>
+            </>
+          )}
+        </p>
+      )}
+    </div>
+  );
+}
+
 /** Everything upheld found for one claim: verdict, flagged words, score and evidence per citation. */
 export function ClaimDetail({ claim, report }: { claim: ClaimResult; report: AuditReport }) {
   const threshold = thresholdOf(report.verifier);
@@ -176,67 +260,18 @@ export function ClaimDetail({ claim, report }: { claim: ClaimResult; report: Aud
       {claim.checks.length === 0 && (
         <p className="text-sm text-ink-2">{claim.note ? sentence(claim.note) : "No citation, so there's nothing to check it against."}</p>
       )}
-      {claim.checks.map((check) => {
-        const src = byId.get(check.source_id);
-        const best = check.evidence[0];
-        return (
-          <div key={check.source_id} className="space-y-3 border-t border-line pt-4">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-              <span className="font-mono text-xs text-ink-3">[{check.source_id}]</span>
-              {src?.url ? (
-                <a href={src.url} className="inline-flex min-w-0 items-center gap-1 truncate text-ink-2 hover:text-ink" target="_blank" rel="noreferrer">
-                  <span className="truncate">{sourceLabel(src, check.source_id)}</span>
-                  <ArrowUpRightIcon size={12} weight="bold" className="shrink-0" aria-hidden />
-                </a>
-              ) : (
-                <span className="text-ink-2">{sourceLabel(src, check.source_id)}</span>
-              )}
-            </div>
-            {src && (
-              <p className={`font-mono text-xs ${LINK_STATUS[src.status].tone}`}>
-                {src.status}
-                {src.note && ` · ${src.note}`}
-              </p>
-            )}
-            {check.support_score !== null && check.verdict !== "source_missing" && (
-              <ScoreScale score={check.support_score} threshold={threshold} />
-            )}
-            {check.missing_entities.length > 0 && (
-              <p className="text-sm text-ink-2">
-                Not in the source:{" "}
-                {check.missing_entities.map((e, i) => (
-                  <Fragment key={e}>
-                    {i > 0 && ", "}
-                    <span className="font-medium text-warn">{e}</span>
-                  </Fragment>
-                ))}
-              </p>
-            )}
-            {best && (
-              <blockquote className="border-l-2 border-line-strong bg-bg px-4 py-3 text-sm leading-relaxed text-ink-2">
-                <span className="mb-1 flex items-baseline justify-between gap-3 text-xs font-medium text-ink-3">
-                  <span>Closest passage in the source</span>
-                  <span className="font-mono">score {best.score.toFixed(2)}</span>
-                </span>
-                {trimPassage(best.passage)}
-              </blockquote>
-            )}
-            {check.note && (
-              <p className="text-sm text-ink-3">
-                {check.note}
-                {src?.archive_url && (
-                  <>
-                    {" · "}
-                    <a href={src.archive_url} className="text-ink-2 underline hover:text-ink" target="_blank" rel="noreferrer">
-                      open the copy
-                    </a>
-                  </>
-                )}
-              </p>
-            )}
-          </div>
-        );
-      })}
+      {claim.checks.map((check) => (
+        <CheckDetail key={check.source_id} check={check} src={byId.get(check.source_id)} threshold={threshold} />
+      ))}
+      {claim.supported_by?.map((check) => (
+        <CheckDetail
+          key={`by-${check.source_id}`}
+          check={check}
+          src={byId.get(check.source_id)}
+          threshold={threshold}
+          heading={byId.get(check.source_id)?.cited === false ? "Backs the claim · from its search, not cited" : "Backs the claim"}
+        />
+      ))}
       {claim.checks.length > 0 && claim.note && <p className="border-t border-line pt-4 text-sm text-ink-2">{sentence(claim.note)}</p>}
     </div>
   );
@@ -249,6 +284,7 @@ export function SourceRows({ sources }: { sources: SourceReport[] }) {
         <li key={s.id} className="flex min-w-0 items-center gap-3">
           <span className="font-mono text-xs text-ink-3">[{s.id}]</span>
           <span className="min-w-0 flex-1 truncate text-ink-2">{sourceLabel(s, s.id)}</span>
+          {s.cited === false && <span className="shrink-0 text-xs text-ink-3">from its search, not cited</span>}
           <span className={`shrink-0 text-xs font-medium ${LINK_STATUS[s.status].tone}`}>{LINK_STATUS[s.status].label}</span>
         </li>
       ))}

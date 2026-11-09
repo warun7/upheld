@@ -280,5 +280,6 @@ def render(report: AuditReport) -> None:
         sources.add_column(col)
     for src in report.sources:
         resolved = f"→ {src.resolved_url}" if src.resolved_url else None
-        sources.add_row(src.id, src.status.value, " · ".join(x for x in (src.url, resolved, src.note) if x))
+        uncited = None if src.cited else "from its search, not cited"
+        sources.add_row(src.id, src.status.value, " · ".join(x for x in (src.url, resolved, uncited, src.note) if x))
     console.print(sources)

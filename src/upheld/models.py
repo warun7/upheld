@@ -17,6 +17,9 @@ class CitedSpan(BaseModel):
     cited: list[str] = Field(min_length=1, description="Ids of the sources the span cites.")
 
 
+MAX_SEEN = 100  # seen_sources kept from one response
+
+
 class AuditRequest(BaseModel):
     question: str | None = Field(default=None, max_length=2_000)
     answer: str = Field(max_length=50_000)
@@ -26,6 +29,12 @@ class AuditRequest(BaseModel):
         max_length=500,
         description="Character ranges of the answer that a provider marked as cited. Each is checked as one claim, "
         "in place of the sentences it overlaps; the rest of the answer is split into sentences as usual.",
+    )
+    seen_sources: list[Source] = Field(
+        default_factory=list,
+        max_length=MAX_SEEN,
+        description="Pages the answer's web search returned that it doesn't cite, in the search's order. When its "
+        "citations don't back a claim, upheld reads the first 10 to see whether one does, and says so when none does.",
     )
 
     @model_validator(mode="after")
@@ -50,7 +59,7 @@ class Verdict(StrEnum):
     SUPPORTED = "supported"
     UNSUPPORTED = "unsupported"
     WRONG_ENTITY = "wrong_entity"  # evidence reads as supporting, but a named entity in the claim is absent from the source
-    MISATTRIBUTED = "misattributed"  # what it cites doesn't back it, but another source the answer cites does
+    MISATTRIBUTED = "misattributed"  # what it cites doesn't back it, but another source the answer cites, or its search found, does
     SOURCE_MISSING = "source_missing"  # cited source doesn't exist or isn't listed
     UNVERIFIABLE = "unverifiable"  # source exists but its text couldn't be read
     UNCITED = "uncited"
@@ -67,6 +76,11 @@ class Evidence(BaseModel):
     source_id: str
     passage: str
     score: float
+    link: str | None = Field(
+        default=None,
+        description="The source's URL with a text fragment (#:~:text=) that opens the page at this passage's sentence "
+        "closest to the claim, highlighted. None for inline text and PDFs.",
+    )
 
 
 class CitationCheck(BaseModel):
@@ -89,7 +103,8 @@ class ClaimResult(BaseModel):
     checks: list[CitationCheck] = Field(default_factory=list)
     supported_by: list[CitationCheck] = Field(
         default_factory=list,
-        description="Other sources in the answer that back the claim when what it cites doesn't, best first.",
+        description="Other sources that back the claim when what it cites doesn't, best first: ones the answer cites "
+        "elsewhere, or for a cited claim, pages its search returned that it doesn't cite.",
     )
     note: str | None = None
 
@@ -104,6 +119,10 @@ class SourceReport(BaseModel):
     note: str | None = None
     archived_at: datetime | None = Field(default=None, description="When the archived copy the text came from was captured.")
     archive_url: str | None = Field(default=None, description="That copy in the Wayback Machine.")
+    cited: bool = Field(
+        default=True,
+        description="False for a page the answer's search returned but the answer doesn't cite, listed because it backs a claim.",
+    )
 
 
 class Summary(BaseModel):

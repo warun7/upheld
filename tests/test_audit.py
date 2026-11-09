@@ -94,6 +94,13 @@ def test_archived_copy_is_checked_like_a_live_page(monkeypatch):
     [source] = report.sources
     assert source.status == LinkStatus.ARCHIVED and source.archived_at.year == 2026
     assert source.archive_url.startswith("https://web.archive.org/web/20261011194435/")
+    # The passage was read from the copy, so its link opens the copy.
+    assert check.evidence[0].link == "https://web.archive.org/web/20261011194435/https://example.com/eiffel#:~:text=The%20Eiffel%20Tower%20in,was%20completed%20in%201889."
+
+
+def test_inline_text_has_no_passage_link():
+    [check] = audit("The Eiffel Tower in Paris is 330 metres tall [1].").claims[0].checks
+    assert check.evidence and all(e.link is None for e in check.evidence)
 
 
 def test_claim_backed_by_another_source_in_the_answer_is_misattributed():
@@ -116,6 +123,47 @@ def test_claim_backed_by_another_source_in_the_answer_is_misattributed():
     # Only sources the answer cites are read, so [2], listed but never cited, backs nothing.
     assert tirzepatide.verdict == Verdict.UNCITED and tirzepatide.supported_by == []
     assert report.summary.claim_verdicts == {"misattributed": 2, "supported": 1, "uncited": 2}
+
+
+def test_claim_backed_by_a_search_result_it_doesnt_cite():
+    req = AuditRequest(
+        answer="The Eiffel Tower in Paris is 330 metres tall [1]. "
+        "Marie Curie won the Nobel Prize in Physics in 1903 [1]. "
+        "The Eiffel Tower was completed in 1925 [1]. "
+        "Marie Curie also won the Nobel Prize in Chemistry in 1911.",
+        sources=[SOURCES[0]],
+        seen_sources=[Source(id="2", text=SOURCES[2].text), Source(id="3", text=SOURCES[3].text)],
+    )
+    report = asyncio.run(run_audit(req, LexicalVerifier(), fetch=False))
+    height, physics, completed, chemistry = report.claims
+    assert height.verdict == Verdict.SUPPORTED
+    assert physics.verdict == Verdict.MISATTRIBUTED and [c.source_id for c in physics.supported_by] == ["2"]
+    assert physics.note == "[2] backs it instead; the answer's search returned [2] but it doesn't cite it"
+    # Nothing it read says this, so the claim didn't come from its search.
+    assert completed.verdict == Verdict.UNSUPPORTED
+    assert completed.note == "nor do the 2 other pages the answer's search returned"
+    # Uncited claims are checked only against the sources the answer cites.
+    assert chemistry.verdict == Verdict.UNCITED and chemistry.supported_by == [] and chemistry.note is None
+    # Only the search result that backs a claim is listed.
+    assert [(s.id, s.cited) for s in report.sources] == [("1", True), ("2", False)]
+
+
+def test_search_results_are_fetched_only_when_a_cited_claim_fails(monkeypatch):
+    fetched: list[list[str]] = []
+
+    async def fetch_all(sources, allow_private=False):
+        fetched.append([s.id for s in sources])
+        return {s.id: FetchedSource(s, LinkStatus.LIVE, SOURCES[0].text if s.id == "1" else "A page about something else.") for s in sources}
+
+    monkeypatch.setattr(pipeline, "fetch_all", fetch_all)
+    seen = [Source(id=str(n), url=f"https://example.com/{n}") for n in range(2, 14)]
+    for answer in ("The Eiffel Tower in Paris is 330 metres tall [1].", "The Eiffel Tower was completed in 1925 [1]."):
+        req = AuditRequest(answer=answer, sources=[Source(id="1", url="https://example.com/1")], seen_sources=seen)
+        report = asyncio.run(run_audit(req, LexicalVerifier()))
+    # The first answer's claim holds, so the search results aren't read. For the second, the first ten are.
+    assert fetched == [["1"], ["1"], [str(n) for n in range(2, 12)]]
+    assert report.claims[0].note == "nor do the 10 of the 12 other pages the answer's search returned that upheld read"
+    assert [s.id for s in report.sources] == ["1"]
 
 
 class AlwaysSupported:

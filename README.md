@@ -36,12 +36,16 @@ Each citation gets one verdict, and each claim gets the best verdict among its c
 | `supported` | The cited source backs the claim |
 | `unsupported` | The source is real and readable, but doesn't back the claim. Flagged spans show which part. |
 | `wrong_entity` | The evidence reads as supporting, but a named entity in the claim appears nowhere in the source (e.g. drug Y's trial cited for drug X) |
-| `misattributed` | The cited source doesn't back the claim, but another source in the same answer does. `supported_by` says which, so the fix is moving the marker |
+| `misattributed` | The cited source doesn't back the claim, but another source does: one the answer cites elsewhere, or a page its search returned that it doesn't cite. `supported_by` says which, so the fix is moving the marker |
 | `source_missing` | Cited source isn't listed, or the URL is dead and was never archived (likely fabricated) |
 | `unverifiable` | The source exists but couldn't be read, and neither could an archived copy (blocked, no text) |
 | `uncited` | A factual-looking sentence with no citation |
 
 An uncited claim that one of the answer's sources backs keeps its verdict, and its note says which marker to add.
+
+For a provider's response, upheld also knows the pages the search returned that the answer doesn't cite. When a cited claim fails, it reads the first 10 of them. One that backs the claim makes it `misattributed`. When none does, the note says so ("nor do the 8 other pages the answer's search returned"): the claim came from neither its citations nor what the search found, so the model likely added it itself. That last note is the verifier's opinion and inherits its error rate (see [Known limitations](#known-limitations)). OpenAI lists these pages only when the request includes `web_search_call.action.sources` in `include`; without it an OpenAI response carries none, and this check has nothing to read.
+
+Each passage in the report comes with a link that opens the page scrolled to that sentence, highlighted (a URL text fragment, `#:~:text=`), so checking a verdict takes one click.
 
 A page upheld can't read live, because it's blocked or dead, is read from the Wayback Machine's newest copy instead and judged like a live page. The report says so and gives the copy's date.
 
@@ -318,7 +322,7 @@ The models load on the first call, in about half a minute once they're downloade
 5. **Entity check**: flag named entities in the claim that appear nowhere in the source. This gets its own verdict, `wrong_entity`, because it's a heuristic with a known false-alarm rate (see [How good is it](#how-good-is-it)).
 6. **Unit check**, for every verifier: a citation is unsupported when the claim gives a length, mass, speed or time whose number the passages give only in another unit ("410 metres" against "410 ft") and the page never states the claim's quantity. Models read "410" in both and miss the unit. Across 7,079 labeled citations (AttributionBench's dev and test splits and a 2,000-row train sample, plus the fresh benchmark) it fired 4 times, all on citations labeled unsupported, though once for the wrong reason: a weight in lbs read against a dose in mg.
 7. **Combine**: a claim citing several sources that individually fail is re-checked against them together (multi-hop claims).
-8. **Look elsewhere**: a claim that still isn't supported, cited or not, is checked against up to two of the answer's other sources whose closest passages hold at least half its words. If one backs it, a cited claim is `misattributed` and an uncited one says which marker to add. Only sources the answer cites somewhere are read, so this fetches nothing new.
+8. **Look elsewhere**: a claim that still isn't supported, cited or not, is checked against up to two of the answer's other sources whose closest passages hold at least half its words. If one backs it, a cited claim is `misattributed` and an uncited one says which marker to add. For a provider's response, a cited claim's candidates also include the pages its search returned that the answer doesn't cite: the first 10, fetched only when some cited claim fails. When those pages were read and none backs the claim, its note says so.
 
 Fetching is guarded against SSRF (no private, loopback or metadata addresses, checked on every redirect) since a hosted API fetches URLs taken from untrusted text. `--allow-private` lifts this for local use.
 
@@ -382,6 +386,8 @@ The edits are synthetic and the claims come from AttributionBench, so these numb
 ### Fresh 2026 benchmark
 
 25 current questions, answered on 31 October and 1 November 2026 by Claude, OpenAI and Gemini agents with their own web search (how, under [Evals](#evals)). upheld split each answer into claims and found 641 pairs of a claim and a page it cites. Each pair is labeled supported, partial, unsupported or can't judge: 639 by Claude Sonnet 5.5 subagents following [`labeling-guide.md`](https://github.com/warun7/upheld/blob/main/evals/fresh/labeling-guide.md), 2 by hand. The labelers saw the question, the claim, the cited URL and upheld's retrieved passages, but not which agent wrote the answer or upheld's verdict, and read the full page whenever the passages didn't settle it. GPT and Gemini relabeled a sample of 150 to check Claude's labels ([below](#checking-claudes-labels)).
+
+These answers were collected as markdown, not as provider responses, so they carry no `seen_sources`: the 0.7.0 check that reads pages an answer's search returned but it doesn't cite does not run on them, and the verdicts below are comparable across 0.6 and 0.7.
 
 | Agent | Citations | Supported | Partial | Unsupported | Can't judge | Dead links |
 |---|---|---|---|---|---|---|
@@ -493,6 +499,7 @@ The labels in `labels-claude.jsonl` came from Claude subagents given `labeling-g
 - **Some servers answer 404 to anything that isn't a browser**, so upheld can call a live page a dead link. In the fresh benchmark an FDA label PDF did this on most tries, which made 7 of Gemini's citations look dead. They're judged against the PDF's archived copy now, but still counted as dead links.
 - **Archived copies can be out of date.** A page upheld can't read live is judged against the Wayback Machine's newest copy, which can be older than the page the answer cited. The report gives the copy's date. In the fresh benchmark the copies were taken between July 2024 and 2 November 2026; the old ones were of journal papers and news stories that don't change.
 - **A blocked page with no readable archived copy stays `unverifiable`.** In the fresh benchmark that's 50 of 641 citations (8%), on 25 pages: 14 never archived, 8 whose copy is a block page too or a PDF over the cap.
+- **The "not in its citations or its search" note is only as good as the verifier.** It says no page the answer cited, and none of up to 10 pages its search returned, backs the claim. The default ensemble wrongly flags 38% of good citations, so some of these notes name a claim the source or the search did support; the judge ensemble's rate is 18%. Treat the note as a prompt to check the pages, not as proof the model invented the claim.
 - Some sites reject generic user agents. The default names this repo; set `UPHELD_USER_AGENT` to your own project URL if you deploy upheld (Wikipedia returns 403 instead of 404 for missing pages without one).
 
 ## Roadmap
@@ -512,6 +519,7 @@ The labels in `labels-claude.jsonl` came from Claude subagents given `labeling-g
 - ~~MCP server~~ done: `upheld mcp`, so Claude Code, Cursor, Codex and other agents check the citations in an answer before they show it
 - ~~pytest helper and GitHub Action~~ done: `upheld.testing.assert_supported`, and `uses: warun7/upheld` with annotations, a job summary and HTML reports
 - ~~Shareable reports and CI exit codes~~ done: `--html` writes the report viewer as one offline HTML file, and `--fail-on` makes a flagged claim fail the command
+- ~~Where a claim came from~~ done: a cited claim that fails is checked against the pages the provider's search returned but the answer doesn't cite, and each passage links to its sentence on the page
 - ~~Web app~~ done: a static site in `web/` at [upheld.varunsg.com](https://upheld.varunsg.com), with two real reports to step through, the benchmarks and a setup guide. No playground: that needs a model server. Next: a browser extension
 
 **Phase 2: train a search agent to cite honestly**

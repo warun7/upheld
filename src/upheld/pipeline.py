@@ -5,6 +5,7 @@ from collections import Counter
 
 from upheld.entities import missing_entities
 from upheld.evidence import Embedder, SourceIndex, retrieval_name, tokenize
+from upheld.links import passage_link
 from upheld.models import (
     AuditReport,
     AuditRequest,
@@ -30,6 +31,9 @@ MAX_PASSAGES = 8
 # closest passages hold at least this share of the claim's words.
 OTHER_SOURCES = 2
 OTHER_SOURCE_COVERAGE = 0.5
+# A cited claim its citations don't back is also checked against pages the answer's search returned but it doesn't
+# cite (a provider's response lists them): the first this many, fetched only when some cited claim fails.
+SEEN_SOURCES = 10
 
 
 async def run_audit(
@@ -59,8 +63,25 @@ async def run_audit(
     else:
         loaded = {s.id: _without_fetch(s) for s in to_load}
 
-    results = await asyncio.to_thread(_check_claims, claims, loaded, verifier, embedder, req.question, top_k or verifier.top_k)
+    top_k = top_k or verifier.top_k
+    results, answer, ranges, indexes = await asyncio.to_thread(_check_claims, claims, loaded, verifier, embedder, req.question, top_k)
+
+    seen_ids: list[str] = []
+    seen: dict[str, FetchedSource] = {}
+    if req.seen_sources and any(r.cited and r.verdict != Verdict.SUPPORTED for r in results):
+        cited_urls = {s.url for s in sources.values() if s.url}
+        unique = {s.id: s for s in req.seen_sources if s.id not in sources and s.url not in cited_urls and (s.url or s.text)}
+        seen_ids = list(unique)
+        to_read = [unique[i] for i in seen_ids[:SEEN_SOURCES]]
+        if to_read:
+            seen = await fetch_all(to_read, allow_private) if fetch else {s.id: _without_fetch(s) for s in to_read}
+    await asyncio.to_thread(
+        _find_other_support, claims, results, answer, ranges, loaded, indexes, seen, len(seen_ids), verifier, embedder, req.question, top_k
+    )
+
     reports = [_source_report(loaded[i]) if i in loaded else _missing_report(i) for i in cited_ids]
+    backing = {c.source_id for r in results for c in r.supported_by}
+    reports += [_source_report(seen[i], cited=False) for i in seen_ids if i in seen and i in backing]
     return AuditReport(
         verifier=verifier.name, retrieval=retrieval_name(embedder), summary=_summarize(results), claims=results, sources=reports
     )
@@ -79,7 +100,7 @@ def _check_claims(
     embedder: Embedder | None,
     question: str | None,
     top_k: int,
-) -> list[ClaimResult]:
+) -> tuple[list[ClaimResult], str, list[tuple[int, int]], dict[str, SourceIndex]]:
     # The verifier reads the whole answer (markers stripped), so each claim is a range within it.
     answer, ranges = _join_claims(claims)
 
@@ -112,9 +133,7 @@ def _check_claims(
         claim_checks = [checks[i, s] for s in claim.cited]
         verdict, note = _claim_verdict(answer, ranges[i], claim.text, claim_checks, loaded, indexes, verifier, question)
         results.append(ClaimResult(**base, verdict=verdict, checks=claim_checks, note=note))
-
-    _find_other_support(claims, results, answer, ranges, loaded, indexes, verifier, question, top_k)
-    return results
+    return results, answer, ranges, indexes
 
 
 def _find_other_support(
@@ -124,16 +143,22 @@ def _find_other_support(
     ranges: list[tuple[int, int]],
     loaded: dict[str, FetchedSource],
     indexes: dict[str, SourceIndex],
+    seen: dict[str, FetchedSource],
+    seen_total: int,
     verifier: Verifier,
+    embedder: Embedder | None,
     question: str | None,
     top_k: int,
 ) -> None:
-    """Check each claim that isn't supported against the answer's other sources most likely to back it.
+    """Check each claim that isn't supported against the other sources most likely to back it.
 
     A claim cited to [1] that [2] backs is misattributed, which is a different fix from a claim nothing backs: move the
-    marker. An uncited claim that a source backs says which marker to add. Only sources the answer cites somewhere are
-    read, so this costs no extra fetches.
+    marker. An uncited claim that a source backs says which marker to add. A cited claim is also checked against the
+    pages its search returned that the answer doesn't cite (`seen`, read from `seen_total` such pages): one of them may
+    be where the claim came from, and when none backs it, the claim came from neither its citations nor its search.
     """
+    seen_indexes = {source_id: SourceIndex(f.text, embedder) for source_id, f in seen.items() if f.text}
+    pages = {**loaded, **seen}
     wanted: dict[str, list[int]] = {}
     evidence: dict[tuple[int, str], list[tuple[str, float]]] = {}
     for i, (claim, result) in enumerate(zip(claims, results)):
@@ -141,7 +166,7 @@ def _find_other_support(
         if result.verdict == Verdict.SUPPORTED or not words:
             continue
         candidates = []
-        for source_id, index in indexes.items():
+        for source_id, index in {**indexes, **seen_indexes}.items() if claim.cited else indexes.items():
             if source_id in claim.cited:
                 continue
             found = index.search(claim.text, top_k)
@@ -157,23 +182,45 @@ def _find_other_support(
         for batch, passages in _batches(claim_ids, found):
             scored = verifier.check(answer, [ranges[i] for i in batch], passages, question)
             for i, score in zip(batch, scored):
-                check = _citation_check(source_id, claims[i].text, loaded[source_id], score, found[i], verifier)
+                check = _citation_check(source_id, claims[i].text, pages[source_id], score, found[i], verifier)
                 if check.verdict == Verdict.SUPPORTED:
                     results[i].supported_by.append(check)
 
     for result in results:
-        if not result.supported_by:
-            continue
-        result.supported_by.sort(key=lambda c: -(c.support_score or 0))
-        markers = " and ".join(f"[{c.source_id}]" for c in result.supported_by)
-        if result.verdict in (Verdict.UNSUPPORTED, Verdict.WRONG_ENTITY):
-            result.verdict = Verdict.MISATTRIBUTED
-            note = f"{markers} {'backs' if len(result.supported_by) == 1 else 'back'} it instead"
-        elif result.verdict == Verdict.UNCITED:
-            note = f"no citation, but {markers} {'backs' if len(result.supported_by) == 1 else 'back'} it"
+        if result.supported_by:
+            result.supported_by.sort(key=lambda c: -(c.support_score or 0))
+            if result.verdict in (Verdict.UNSUPPORTED, Verdict.WRONG_ENTITY):
+                result.verdict = Verdict.MISATTRIBUTED
+            note = _support_note(result, set(seen))
+        elif result.cited and seen_indexes and result.verdict in (Verdict.UNSUPPORTED, Verdict.WRONG_ENTITY):
+            note = _unseen_note(len(seen_indexes), seen_total)
         else:
-            note = f"{markers} in the same answer {'backs' if len(result.supported_by) == 1 else 'back'} it"
+            continue
         result.note = f"{result.note}; {note}" if result.note else note
+
+
+def _support_note(result: ClaimResult, seen: set[str]) -> str:
+    """'[2] backs it instead', and which of the backers the answer's search returned without the answer citing them."""
+    markers = " and ".join(f"[{c.source_id}]" for c in result.supported_by)
+    verb = "backs" if len(result.supported_by) == 1 else "back"
+    uncited = [c.source_id for c in result.supported_by if c.source_id in seen]
+    if result.verdict == Verdict.MISATTRIBUTED:
+        note = f"{markers} {verb} it instead"
+    elif result.verdict == Verdict.UNCITED:
+        note = f"no citation, but {markers} {verb} it"
+    else:
+        note = f"{markers} {'' if uncited else 'in the same answer '}{verb} it"
+    if uncited:
+        pronoun = "it" if len(uncited) == 1 else "them"
+        note += f"; the answer's search returned {' and '.join(f'[{i}]' for i in uncited)} but it doesn't cite {pronoun}"
+    return note
+
+
+def _unseen_note(read: int, total: int) -> str:
+    """For a claim nothing backs: neither did the pages its search returned."""
+    if read == total:
+        return "nor does the other page the answer's search returned" if read == 1 else f"nor do the {read} other pages the answer's search returned"
+    return f"nor do the {read} of the {total} other pages the answer's search returned that upheld read"
 
 
 def _join_claims(claims: list[Claim]) -> tuple[str, list[tuple[int, int]]]:
@@ -232,6 +279,8 @@ def _citation_check(
         if not any(sp.start < q.end and q.start < sp.end for sp in spans):
             spans.append(Span(start=q.start, end=q.end, text=q.text, confidence=1.0))
     notes = [f"the source gives {said.text}, not {q.text}" for q, said in mismatched]
+    # The text was read from the archived copy when there is one, so that's the page to open.
+    page = source.archive_url if source.archived_at else source.resolved_url or source.source.url
     if source.archived_at:
         notes.append(f"checked against the Wayback Machine copy of {source.archived_at:%Y-%m-%d}")
     return CitationCheck(
@@ -240,7 +289,7 @@ def _citation_check(
         support_score=result.score,
         unsupported_spans=sorted(spans, key=lambda sp: sp.start),
         missing_entities=missing,
-        evidence=[Evidence(source_id=source_id, passage=p, score=s) for p, s in passages],
+        evidence=[Evidence(source_id=source_id, passage=p, score=s, link=passage_link(page, p, claim)) for p, s in passages],
         note="; ".join(notes) or None,
     )
 
@@ -274,7 +323,7 @@ def _claim_verdict(
     return Verdict.UNSUPPORTED, None
 
 
-def _source_report(f: FetchedSource) -> SourceReport:
+def _source_report(f: FetchedSource, cited: bool = True) -> SourceReport:
     return SourceReport(
         id=f.source.id,
         url=f.source.url,
@@ -285,6 +334,7 @@ def _source_report(f: FetchedSource) -> SourceReport:
         note=f.note,
         archived_at=f.archived_at,
         archive_url=f.archive_url,
+        cited=cited,
     )
 
 

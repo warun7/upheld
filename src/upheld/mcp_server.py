@@ -179,9 +179,10 @@ def make_server(
         Returns counts of each verdict and, for each claim that isn't supported, the cited URL, the closest passage in the
         source and why, so you can fix or drop the claim. Verdicts: supported; unsupported (the source doesn't say it);
         wrong_entity (a name in the claim isn't in the source); misattributed (what it cites doesn't back it, but another
-        source in the answer does: supported_by says which); source_missing (no such source listed, or a dead URL that was
-        never archived); unverifiable (the page couldn't be read, live or archived); uncited (a factual sentence with no
-        citation). Pages that can't be read live are read from the Wayback Machine, and the note says so.
+        source in the answer, or a page its search returned, does: supported_by says which); source_missing (no such source
+        listed, or a dead URL that was never archived); unverifiable (the page couldn't be read, live or archived); uncited
+        (a factual sentence with no citation). Pages that can't be read live are read from the Wayback Machine, and the
+        note says so. passage_link opens the page at the closest passage, highlighted, to show the user.
         """
         if (answer is None) == (response is None):
             raise ToolError("give either answer (with its sources) or response")
@@ -263,6 +264,7 @@ def _citation(check: CitationCheck, source: SourceReport | None, claim: str) -> 
         "verdict": check.verdict.value,
         "score": check.support_score,
         "closest_passage": excerpt(check.evidence[0].passage, claim) if check.evidence else None,
+        "passage_link": check.evidence[0].link if check.evidence else None,
         "not_in_source": check.missing_entities or None,
         "flagged": [span.text.strip() for span in check.unsupported_spans] or None,
         "note": check.note,

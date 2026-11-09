@@ -13,6 +13,10 @@ Each provider marks citations its own way:
     claim. The chunks' URLs are redirects, which fetching follows. The
     Interactions API's url_citation annotations cover the cited text instead.
 
+The pages each search returned that the answer doesn't cite become `seen_sources`, numbered after the cited ones
+(Perplexity and Gemini keep their own numbers). OpenAI lists them only when the request includes
+"web_search_call.action.sources".
+
 A response can be the provider SDK's object, its JSON as a dict, or a JSON string.
 """
 
@@ -22,7 +26,7 @@ from enum import StrEnum
 from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-from upheld.models import AuditRequest, CitedSpan, Source
+from upheld.models import MAX_SEEN, AuditRequest, CitedSpan, Source
 from upheld.parse import _MARKER, _MD_LINK
 
 
@@ -81,7 +85,14 @@ def from_openai(response: Any, *, question: str | None = None) -> AuditRequest:
                 start, end = _link_at(text, a["url"], a.get("start_index") or 0, a.get("end_index") or 0)
                 cites.append((start, end, sources.id(_without_utm(a["url"]), a.get("title"))))
         texts.append(_with_markers(text, cites))
-    return _request("openai", "\n\n".join(texts), sources.list(), [], question)
+    found = [
+        (_without_utm(s["url"]), s.get("title"))
+        for item in data.get("output") or []
+        if item.get("type") == "web_search_call"
+        for s in (item.get("action") or {}).get("sources") or []
+        if s.get("url")
+    ]
+    return _request("openai", "\n\n".join(texts), sources.list(), [], question, sources.uncited(found))
 
 
 def _without_utm(url: str) -> str:
@@ -134,7 +145,14 @@ def from_anthropic(response: Any, *, question: str | None = None) -> AuditReques
         if ids and text.strip():
             spans.append(CitedSpan(start=len(answer), end=len(answer) + len(text), cited=list(dict.fromkeys(ids))))
         answer += text
-    return _request("anthropic", answer, sources.list(), spans, question)
+    found = []
+    for block in blocks:
+        content = block.get("content")
+        if block.get("type") == "web_search_tool_result" and isinstance(content, list):  # an error is an object
+            found += [(r["url"], r.get("title")) for r in content if r.get("type") == "web_search_result" and r.get("url")]
+        elif block.get("type") == "web_fetch_tool_result" and isinstance(content, dict) and content.get("url"):
+            found.append((content["url"], (content.get("content") or {}).get("title")))
+    return _request("anthropic", answer, sources.list(), spans, question, sources.uncited(found))
 
 
 _TYPED_MARKER = re.compile(r"\[([a-z_]+):(\d+)\]")
@@ -168,7 +186,12 @@ def from_perplexity(response: Any, *, question: str | None = None) -> AuditReque
     text = _TYPED_MARKER.sub(lambda m: f"[{m[2]}]" if m[1] == "web" else "", text)
     cited = {i.strip() for m in _MARKER.finditer(text) for i in (m[1] or m[2]).split(",")}
     sources = [Source(id=i, url=r["url"], title=r.get("title") or None) for i, r in results.items() if i in cited and r.get("url")]
-    return _request("perplexity", text, sources, [], question)
+    cited_urls = {s.url for s in sources}
+    seen: dict[str, Source] = {}
+    for i, r in results.items():
+        if i not in cited and r.get("url") and r["url"] not in cited_urls:
+            seen.setdefault(r["url"], Source(id=i, url=r["url"], title=r.get("title") or None))
+    return _request("perplexity", text, sources, [], question, list(seen.values()))
 
 
 def from_gemini(response: Any, *, question: str | None = None) -> AuditRequest:
@@ -209,7 +232,12 @@ def from_gemini(response: Any, *, question: str | None = None) -> AuditRequest:
             ids.append(source_id)
         if ids and start < end:
             spans.append(CitedSpan(start=part_start[part] + start, end=part_start[part] + end, cited=list(dict.fromkeys(ids))))
-    return _request("gemini", answer, sorted(sources.values(), key=lambda s: int(s.id)), spans, question)
+    seen = [
+        Source(id=str(index + 1), url=web["uri"], title=web.get("title") or None)
+        for index, web in enumerate(chunks)
+        if web.get("uri") and web["uri"] not in ids_by_url
+    ]
+    return _request("gemini", answer, sorted(sources.values(), key=lambda s: int(s.id)), spans, question, seen)
 
 
 def _segment_range(text: str, segment: dict) -> tuple[int, int]:
@@ -262,6 +290,14 @@ class _Numbering:
             self._sources[url] = Source(id=str(len(self._sources) + 1), url=url, title=title or None)
         return self._sources[url].id
 
+    def uncited(self, found: list[tuple[str, str | None]]) -> list[Source]:
+        """The pages a search found that the answer doesn't cite, numbered on from the cited ones."""
+        seen: dict[str, Source] = {}
+        for url, title in found:
+            if url not in self._sources and url not in seen:
+                seen[url] = Source(id=str(len(self._sources) + len(seen) + 1), url=url, title=title or None)
+        return list(seen.values())
+
     def list(self) -> list[Source]:
         return list(self._sources.values())
 
@@ -296,10 +332,12 @@ def _with_markers(text: str, cites: list[tuple[int, int, str]]) -> str:
     return "".join(out)
 
 
-def _request(provider: str, answer: str, sources: list[Source], spans: list[CitedSpan], question: str | None) -> AuditRequest:
+def _request(
+    provider: str, answer: str, sources: list[Source], spans: list[CitedSpan], question: str | None, seen: list[Source] | None = None
+) -> AuditRequest:
     if not answer.strip():
         raise ValueError(f"no answer text in this {provider} response")
-    return AuditRequest(question=question, answer=answer, sources=sources, cited_spans=spans)
+    return AuditRequest(question=question, answer=answer, sources=sources, cited_spans=spans, seen_sources=(seen or [])[:MAX_SEEN])
 
 
 def _as_dict(response: Any) -> dict:

@@ -31,7 +31,7 @@ export const VERDICTS: Record<Verdict, { label: string; short: string; icon: Ico
   },
   misattributed: {
     label: "Misattributed",
-    short: "The cited source doesn't back the claim, but another source in the same answer does.",
+    short: "The cited source doesn't back the claim, but another source the answer cites, or its search found, does.",
     icon: ArrowsLeftRightIcon,
     tone: "text-warn",
   },
