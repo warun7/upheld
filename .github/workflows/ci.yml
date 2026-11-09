@@ -32,6 +32,42 @@ jobs:
       - run: uv sync --locked
       - run: uv run pytest -q
 
+  action:
+    name: GitHub Action
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # The lexical verifier and inline sources: no models, no network, so this tests the action, not the verifiers.
+      - name: Passes when no claim has a failing verdict
+        id: pass
+        uses: ./
+        with:
+          files: examples/glp1.json
+          verifier: lexical
+          retrieval: bm25
+          fetch: "false"
+          fail-on: source_missing
+          report-name: upheld-reports-pass
+      - name: Fails on flagged claims
+        id: flagged
+        continue-on-error: true
+        uses: ./
+        with:
+          files: examples/glp1.json
+          verifier: lexical
+          retrieval: bm25
+          fetch: "false"
+          report-name: upheld-reports-flagged
+      - name: Check the outcomes
+        env:
+          FLAGGED: ${{ steps.flagged.outcome }}
+          FAILED: ${{ steps.flagged.outputs.failed }}
+          REPORTS: ${{ steps.pass.outputs.report-dir }}
+        run: |
+          test "$FLAGGED" = failure || { echo "::error::the flagged run should have failed"; exit 1; }
+          test "$FAILED" = 1 || { echo "::error::expected 1 failing answer, got '$FAILED'"; exit 1; }
+          test -s "$REPORTS/examples_glp1.json.html" && test -s "$REPORTS/examples_glp1.json.json"
+
   web:
     name: Site
     runs-on: ubuntu-latest

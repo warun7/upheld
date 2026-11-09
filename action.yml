@@ -1,0 +1,99 @@
+# Use from a workflow:
+#   - uses: actions/checkout@v7
+#   - uses: warun7/upheld@v0.6.0
+#     with:
+#       files: answers/**/*.md
+# It installs upheld from this same checkout, so the action and the package are always the same version.
+name: upheld citation check
+description: Check whether the citations in AI answers support their claims. Fails when a claim is flagged, and uploads an HTML report per answer.
+author: Varun S G
+branding:
+  icon: check-circle
+  color: blue
+
+inputs:
+  files:
+    description: Answers to audit, one path or glob per line. Markdown or text with a reference list, AuditRequest JSON, or a provider's API response saved as JSON.
+    required: true
+  fail-on:
+    description: Verdicts that fail the step, separated by commas, or "flagged" for unsupported, wrong_entity, misattributed and source_missing. Empty never fails on a verdict.
+    default: flagged
+  verifier:
+    description: The verifier. Pinned rather than auto so every run uses the same one. lexical needs no models; ensemble downloads about 4 GB once, then reads them from the cache.
+    default: ensemble
+  retrieval:
+    description: auto, hybrid or bm25.
+    default: auto
+  from:
+    description: Whose API response the JSON files are (openai, anthropic, perplexity, gemini), or auto.
+    default: auto
+  fetch:
+    description: Fetch the cited URLs. "false" uses only the source text given inline.
+    default: "true"
+  report-name:
+    description: Name of the artifact that holds the HTML and JSON reports. Each use of the action in a workflow needs its own. Empty skips the upload.
+    default: upheld-reports
+  python-version:
+    description: Python to run upheld on.
+    default: "3.12"
+
+outputs:
+  failed:
+    description: How many answers had a claim with a verdict in fail-on.
+    value: ${{ steps.audit.outputs.failed }}
+  report-dir:
+    description: The directory holding one .html and one .json report per answer.
+    value: ${{ steps.audit.outputs.report-dir }}
+
+runs:
+  using: composite
+  steps:
+    - uses: astral-sh/setup-uv@v10.3.3
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install upheld
+      shell: bash
+      env:
+        VERIFIER: ${{ inputs.verifier }}
+        RETRIEVAL: ${{ inputs.retrieval }}
+      run: |
+        case "$VERIFIER" in
+          lexical) extras="" ;;
+          judge) extras="judge" ;;
+          ensemble+judge) extras="models,judge" ;;
+          *) extras="models" ;;
+        esac
+        # models includes the embedder; the lighter verifiers only get it when hybrid retrieval is asked for.
+        if [ "$RETRIEVAL" = hybrid ] && [ "$extras" != models ] && [ "$extras" != models,judge ]; then extras="${extras:+$extras,}dense"; fi
+        venv="$RUNNER_TEMP/upheld-venv"
+        [ -x "$venv/bin/python" ] || uv venv --quiet "$venv"
+        # CPU torch: hosted runners have no GPU, and the CUDA build is several GB.
+        uv pip install --quiet --python "$venv" --torch-backend cpu "$GITHUB_ACTION_PATH${extras:+[$extras]}"
+
+    - name: Cache models
+      if: inputs.verifier != 'lexical' || inputs.retrieval == 'hybrid'
+      uses: actions/cache@v6
+      with:
+        path: ~/.cache/huggingface
+        key: upheld-models-${{ runner.os }}-${{ inputs.verifier }}-${{ inputs.retrieval }}-1
+
+    - name: Audit
+      id: audit
+      shell: bash
+      env:
+        UPHELD_FILES: ${{ inputs.files }}
+        UPHELD_FAIL_ON: ${{ inputs.fail-on }}
+        UPHELD_VERIFIER: ${{ inputs.verifier }}
+        UPHELD_RETRIEVAL: ${{ inputs.retrieval }}
+        UPHELD_FROM: ${{ inputs.from }}
+        UPHELD_FETCH: ${{ inputs.fetch }}
+        UPHELD_OUT: ${{ runner.temp }}/upheld-reports/${{ inputs.report-name || 'reports' }}
+      run: '"$RUNNER_TEMP/upheld-venv/bin/python" "$GITHUB_ACTION_PATH/.github/action/audit.py"'
+
+    - name: Upload the reports
+      if: always() && inputs.report-name != '' && steps.audit.outputs.report-dir != ''
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ inputs.report-name }}
+        path: ${{ steps.audit.outputs.report-dir }}

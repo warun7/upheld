@@ -275,7 +275,7 @@ const python: DocPage = {
 from upheld import Verdict
 
 # Loads the models once; keep it and reuse it.
-auditor = upheld.Auditor()  # verifier="ensemble", retrieval="auto"
+auditor = upheld.Auditor()  # verifier="auto", retrieval="auto"
 
 
 def unsupported_claims(answer: str, docs: list[str]) -> list[str]:
@@ -299,9 +299,79 @@ print(bad)`}</Code>
       </p>
       <H3>Using it as a test</H3>
       <p>
-        A simple gate is to fail when any cited claim isn't <C>supported</C>, or when the share of supported claims drops below what you measured on a known-good set.
-        Uncited claims show up with the verdict <C>uncited</C>; whether those should fail is up to you. Expect some false alarms on good answers and decide on a
-        threshold with <A href="#eval">your own labels</A> before you block on it.
+        <C>upheld.testing.assert_supported</C> audits an answer and fails the test with the claims that broke. See{" "}
+        <A href="#tests-and-ci">Check citations in tests and CI</A>.
+      </p>
+    </>
+  ),
+};
+
+const testsAndCi: DocPage = {
+  id: "tests-and-ci",
+  title: "Check citations in tests and CI",
+  body: (
+    <>
+      <p>
+        Three ways to fail a build when an answer's citations don't hold up. All three take the same <C>fail_on</C> verdicts. The default, <C>flagged</C>, is{" "}
+        <C>unsupported</C>, <C>wrong_entity</C>, <C>misattributed</C> and <C>source_missing</C>; add <C>unverifiable</C> or <C>uncited</C> to be stricter. Pin
+        the verifier in all three, since <C>auto</C> picks one for the machine, and a laptop with a GPU would run a different one from a CI runner.
+      </p>
+      <H3>In a pytest suite</H3>
+      <Code label="python">{`from upheld.testing import assert_supported
+
+
+def test_support_bot_cites_the_docs():
+    answer = support_bot("How do I rotate an API key?")  # your app: text with [1] markers, or a provider's response
+    assert_supported(answer, retrieved_docs, verifier="ensemble")
+
+
+def test_search_answer_holds_up():
+    response = client.responses.create(model="...", tools=[{"type": "web_search"}], input="...")
+    assert_supported(response, verifier="ensemble", fail_on="flagged,uncited")`}</Code>
+      <p>
+        <C>assert_supported</C> takes what <C>upheld.audit</C> takes and returns the report when nothing fails. Otherwise it raises{" "}
+        <C>CitationsNotSupported</C>, an <C>AssertionError</C> whose message lists each failing claim with its sources' verdicts, scores and notes; the exception's{" "}
+        <C>report</C> holds the full audit. The models load on the first call and stay loaded, so a test session pays for them once. Pass an{" "}
+        <C>AuditReport</C> to check one you already have, or <C>auditor=</C> to use an <C>Auditor</C> you built.
+      </p>
+      <Note>
+        Expect some false alarms on good answers: the default ensemble flags 38% of good citations on real 2026 answers, the judge 19%. Gate on a verifier you've
+        measured on <A href="#eval">your own labels</A>, or start with <C>fail_on="source_missing"</C>, which only catches dead and missing sources.
+      </Note>
+      <H3>In GitHub Actions</H3>
+      <p>
+        The action audits every file that matches, uploads an HTML report per answer, adds an annotation on each failing claim's line, and writes a summary table
+        to the job page. It runs on Linux and macOS runners.
+      </p>
+      <Code label="yaml">{`- uses: actions/checkout@v7
+- uses: warun7/upheld@v0.6.0
+  with:
+    files: |
+      answers/**/*.md
+      responses/*.json
+    verifier: ensemble    # the default; lexical needs no models
+    fail-on: flagged      # the default`}</Code>
+      <Table
+        head={["Input", "Default", "Does"]}
+        rows={[
+          ["files", <>required</>, "Paths or globs, one per line: markdown or text answers with a reference list, AuditRequest JSON, or a provider's saved response."],
+          ["fail-on", <C>flagged</C>, "Verdicts that fail the step. Empty never fails on a verdict."],
+          ["verifier", <C>ensemble</C>, <>Downloads about 4 GB once and caches it. <C>lexical</C> needs no models.</>],
+          ["retrieval", <C>auto</C>, <><C>auto</C>, <C>hybrid</C> or <C>bm25</C>.</>],
+          ["from", <C>auto</C>, "Whose API response the JSON files are."],
+          ["fetch", <C>true</C>, <><C>false</C> uses only source text given inline.</>],
+          ["report-name", <C>upheld-reports</C>, "The artifact's name. Give each use of the action in a workflow its own; empty skips the upload."],
+        ]}
+      />
+      <p>
+        The step fails with 1 when a claim's verdict is in <C>fail-on</C> and 2 when a file can't be audited. Its outputs are <C>failed</C>, how many answers
+        failed, and <C>report-dir</C>.
+      </p>
+      <H3>From the command line</H3>
+      <Code>{`upheld audit answer.md --verifier ensemble --fail-on flagged --html report.html`}</Code>
+      <p>
+        Exit codes are 0 when the audit finishes, 1 when <C>--fail-on</C> matches a claim, and 2 on an error. The HTML report is written before the exit, so a
+        failed job can still upload it.
       </p>
     </>
   ),
@@ -775,6 +845,11 @@ const cli: DocPage = {
         default picks one for the machine:
       </p>
       <Code>{`upheld audit answer.md --verifier ensemble --fail-on flagged --html report.html`}</Code>
+      <H3>upheld doctor</H3>
+      <p>
+        Show what's installed, which verifier and retrieval <C>auto</C> picks on this machine and why, and whether their models are downloaded. It loads no
+        model. Paste its output into a bug report.
+      </p>
       <H3>upheld eval PATH</H3>
       <p>
         Score a verifier against labeled JSONL, with a threshold sweep. Takes <C>--verifier</C> and <C>--threshold</C>. See{" "}
@@ -850,6 +925,7 @@ const troubleshooting: DocPage = {
           ["An MCP client can't start upheld.", <>Run <C>uvx --from "upheld[models,mcp]" upheld mcp --help</C> in a terminal once. The first run installs torch and takes longer than clients wait.</>],
           ["Codex says the upheld tool timed out.", <>Set <C>tool_timeout_sec = 600</C> under <C>[mcp_servers.upheld]</C>. Codex's default is 60 seconds, and the first call loads the models.</>],
           ["The agent's first audit stopped while the models loaded.", <>The first run downloads about 4 GB. The download carries on in the background, so ask the agent to try again in a minute or two.</>],
+          ["You're not sure which verifier runs, or why.", <>Run <C>upheld doctor</C>. It says what <C>auto</C> picks on this machine and what's missing for the others.</>],
           ["It's too slow on CPU.", <>Try <C>--verifier minicheck</C>, or <C>--verifier lexical --retrieval bm25</C> to skip the models entirely.</>],
           ["A true claim is flagged.", <>Usually a one-step inference ("-14.9% change" vs "14.9% loss") or retrieval picking the wrong part of a long page. <C>--verifier ensemble+judge</C> handles both better: it reads 10 passages per claim and flags about half as many good citations.</>],
           ["A Gemini source says its redirect link no longer resolves.", <>Gemini's source links are redirects that expire. Audit Gemini responses soon after you get them.</>],
@@ -915,6 +991,6 @@ const setup: DocPage = {
 
 export const DOCS: { group: string; pages: DocPage[] }[] = [
   { group: "Getting started", pages: [overview, install, setup, quickstart] },
-  { group: "Guides", pages: [providers, auditAnswer, python, http, mcp, verifiers, evaluate, selfHost] },
+  { group: "Guides", pages: [providers, auditAnswer, python, testsAndCi, http, mcp, verifiers, evaluate, selfHost] },
   { group: "Reference", pages: [input, report, verdicts, cli, howItWorks, troubleshooting] },
 ];

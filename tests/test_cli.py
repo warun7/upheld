@@ -80,3 +80,9 @@ def test_the_packaged_template_has_its_data_slot():
     from importlib import resources
 
     assert resources.files("upheld").joinpath("report.html").read_text("utf-8").count(SLOT) == 1
+
+
+def test_doctor_says_what_auto_picks_and_why():
+    result = runner().invoke(app, ["doctor"])
+    assert result.exit_code == 0, result.stdout
+    assert "auto picks" in result.stdout and "extras" in result.stdout

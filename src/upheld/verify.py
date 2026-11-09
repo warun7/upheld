@@ -404,16 +404,28 @@ def default_verifier(device: str | None = None) -> str:
     fresh 2026 labels it flags 19% of good citations where the ensemble flags 38%, at about the same speed on a GPU.
     Otherwise the ensemble, since on a CPU the judge takes many seconds per claim.
     """
-    if device == "cpu" or any(importlib.util.find_spec(m) is None for m in ("llama_cpp", "huggingface_hub", "transformers")):
-        return "ensemble"
+    return explain_default_verifier(device)[0]
+
+
+def explain_default_verifier(device: str | None = None) -> tuple[str, str]:
+    """default_verifier's choice, with the reason for it: what `upheld doctor` prints."""
+    if device == "cpu":
+        return "ensemble", "the device is the CPU, where the judge takes many seconds per claim"
+    if any(importlib.util.find_spec(m) is None for m in ("llama_cpp", "huggingface_hub", "transformers")):
+        return "ensemble", 'the judge extra isn\'t installed (pip install "upheld[judge]")'
     try:
         import llama_cpp
 
         with _quiet_stderr():
             gpu = bool(llama_cpp.llama_supports_gpu_offload())
     except (ImportError, OSError, AttributeError):  # a broken llama.cpp build fails here, not halfway through the first audit
-        return "ensemble"
-    return "judge" if gpu and _memory_gib() >= JUDGE_MIN_MEMORY_GIB else "ensemble"
+        return "ensemble", "llama.cpp is installed but fails to load"
+    if not gpu:
+        return "ensemble", "this llama.cpp build can't use a GPU, and on a CPU the judge takes many seconds per claim"
+    memory = _memory_gib()
+    if memory < JUDGE_MIN_MEMORY_GIB:
+        return "ensemble", f"the judge wants {JUDGE_MIN_MEMORY_GIB} GB of memory and this machine has {memory:.0f} GB"
+    return "judge", "the judge extra is installed, llama.cpp can use the GPU, and there's memory to spare"
 
 
 def make_verifier(name: str, threshold: float | None = None, device: str | None = None) -> Verifier:

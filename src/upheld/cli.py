@@ -8,6 +8,7 @@ from typing import Annotated
 
 import typer
 from rich.console import Console
+from rich.markup import escape
 from rich.table import Table
 
 from upheld.auditor import to_request
@@ -17,6 +18,7 @@ from upheld.htmlreport import render_html
 from upheld.models import AuditReport, AuditRequest, Verdict
 from upheld.pipeline import run_audit
 from upheld.providers import Provider
+from upheld.testing import fail_on_verdicts, summarize
 from upheld.verify import make_verifier
 
 app = typer.Typer(no_args_is_help=True, help="Check whether an AI answer's citations actually support its claims.")
@@ -38,8 +40,6 @@ THRESHOLD_HELP = "Support score below this counts as unsupported."
 RETRIEVAL_HELP = "How to find evidence in each source: hybrid (BM25 + embeddings), bm25, or auto (hybrid if installed)."
 ALLOW_PRIVATE_HELP = "Allow fetching localhost and private-network URLs."
 
-# The verdicts the site's "Flagged" filter shows: the claim is wrong, or its source is gone.
-FLAGGED = (Verdict.UNSUPPORTED, Verdict.WRONG_ENTITY, Verdict.MISATTRIBUTED, Verdict.SOURCE_MISSING)
 FAIL_ON_HELP = (
     "Exit with status 1 if any claim gets one of these verdicts, comma-separated: unsupported, wrong_entity, misattributed, "
     "source_missing, unverifiable, uncited, or flagged for the first four. Without it, a finished audit exits 0. "
@@ -47,18 +47,11 @@ FAIL_ON_HELP = (
 )
 
 
-def _fail_on(value: str | None) -> set[Verdict]:
-    verdicts: set[Verdict] = set()
-    for name in (s.strip().lower().replace("-", "_") for s in (value or "").split(",")):
-        if not name:
-            continue
-        if name == "flagged":
-            verdicts.update(FLAGGED)
-        elif name in Verdict._value2member_map_ and name != Verdict.SUPPORTED:
-            verdicts.add(Verdict(name))
-        else:
-            raise typer.BadParameter(f"{name!r} isn't a verdict to fail on; use {', '.join(v.value for v in Verdict if v != Verdict.SUPPORTED)} or flagged")
-    return verdicts
+def _fail_on(value: str | None) -> frozenset[Verdict]:
+    try:
+        return fail_on_verdicts(value or "")
+    except ValueError as e:
+        raise typer.BadParameter(str(e)) from e
 
 
 VerifierOpt = Annotated[str, typer.Option(help=VERIFIER_HELP)]
@@ -129,11 +122,7 @@ def audit(
         err.print(f"wrote {html}", soft_wrap=True, highlight=False)
     failing = [c for c in report.claims if c.verdict in failing_verdicts]
     if failing:
-        counts: dict[Verdict, int] = {}
-        for c in failing:
-            counts[c.verdict] = counts.get(c.verdict, 0) + 1
-        found = ", ".join(f"{n} {v.value}" for v, n in sorted(counts.items(), key=lambda kv: -kv[1]))
-        err.print(f"[red]--fail-on:[/] {len(failing)} of {len(report.claims)} claims failed ({found})")
+        err.print(f"[red]--fail-on:[/] {summarize(failing, report)}")
         raise typer.Exit(1)
 
 
@@ -215,6 +204,45 @@ def mcp_server(
         # While serving, the SDK points fd 1 at stderr. Stray print()s still buffered when it hands fd 1 back
         # would reach the client as the process exits, so send those to stderr too.
         os.dup2(2, 1)
+
+
+@app.command()
+def doctor() -> None:
+    """Show what's installed, which verifier and retrieval `auto` picks on this machine and why, and which models are downloaded."""
+    from upheld.doctor import diagnose
+
+    d = diagnose()
+    ok, no = "[green]✓[/]", "[red]✗[/]"
+    console.print(f"[bold]upheld {d.upheld}[/] · Python {d.python} · {d.system} · {d.memory_gib:.0f} GB memory\n")
+
+    console.print("[bold]extras[/]")
+    for e in d.extras:
+        detail = ", ".join(e.versions) if e.installed else f'[dim]pip install "upheld\\[{e.name}]"[/]'
+        console.print(f"  {ok if e.installed else no} {e.name:<10} {detail}")
+
+    devices = {"cuda": "cuda (NVIDIA GPU)", "mps": "mps (Apple GPU)", "cpu": "cpu (no GPU found by torch)", None: "[dim]unknown: torch isn't installed[/]"}
+    console.print(f"\n[bold]device[/]     {devices[d.device]}")
+    console.print(f"[bold]verifier[/]   auto picks [bold]{d.verifier}[/]: {escape(d.reason)}")
+    if not d.runnable:
+        console.print(
+            f'           [red]{d.verifier} needs extras that aren\'t installed[/], so audits fail unless you pass --verifier lexical, '
+            'which is much weaker: pip install "upheld\\[models]"'
+        )
+    retrieval = "hybrid (BM25 + embeddings)" if d.retrieval == "hybrid" else 'bm25 (keywords only; hybrid needs pip install "upheld\\[dense]")'
+    console.print(f"[bold]retrieval[/]  auto picks {retrieval}")
+
+    if d.models:
+        console.print("\n[bold]models[/] for these choices")
+        width = max(len(m.repo) for m in d.models)
+        for m in d.models:
+            if m.downloaded is None:
+                state = f"[dim]can't tell: huggingface_hub isn't installed ({m.size})[/]"
+            elif m.downloaded:
+                state = "downloaded"
+            else:
+                state = f"[yellow]downloads {m.size} on first use[/]"
+            mark = "[dim]?[/]" if m.downloaded is None else ok if m.downloaded else no
+            console.print(f"  {mark} {m.repo:<{width}}  {state}")
 
 
 def render(report: AuditReport) -> None:

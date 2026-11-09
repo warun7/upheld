@@ -84,6 +84,7 @@ upheld audit answer.md --html report.html    # also write the report as one HTML
 upheld audit answer.md --fail-on flagged     # exit 1 if a claim is unsupported, wrong_entity, misattributed or source_missing
 upheld serve                                 # POST /audit on http://127.0.0.1:8000 (needs upheld[api])
 upheld mcp                                   # MCP server over stdio, for AI agents (needs upheld[mcp])
+upheld doctor                                # what's installed, and which verifier auto picks here and why
 ```
 
 `--html` writes the same report viewer the website uses, with the audit inside, as a single file of about 500 KB. It loads nothing from the network, so it opens from disk, as an email attachment or as a CI artifact. `--fail-on` takes verdicts separated by commas (`unsupported`, `wrong_entity`, `misattributed`, `source_missing`, `unverifiable`, `uncited`) or `flagged` for the first four. `upheld audit` exits 1 when a claim gets one of them, 2 on an error such as unreadable input or a missing extra, and 0 otherwise, so a CI job can tell a failed check from a broken one. Pin `--verifier` in CI: the default picks one for the machine.
@@ -168,7 +169,7 @@ Gemini's redirect links stop working after a while, so audit a Gemini response s
 `upheld.audit` keeps the models from its last call loaded. To hold them yourself, or to audit from async code, make an `Auditor`:
 
 ```python
-auditor = upheld.Auditor()  # verifier="ensemble", retrieval="auto": a few seconds and about 4 GB to load
+auditor = upheld.Auditor()  # verifier="auto", retrieval="auto": a few seconds and about 4 GB to load
 
 for answer, docs in batch:
     report = auditor.audit(answer, docs)  # docs: your retrieved texts, cited as [1], [2], ...
@@ -177,6 +178,29 @@ report = await auditor.audit_async(response)  # in an event loop, such as a web 
 ```
 
 `run_audit(request, verifier, embedder=...)` is still there for full control.
+
+### In tests and CI
+
+`upheld.testing.assert_supported` audits an answer and fails the test with every claim that broke, its sources' verdicts and scores:
+
+```python
+from upheld.testing import assert_supported
+
+def test_search_answer_holds_up():
+    response = client.responses.create(model="...", tools=[{"type": "web_search"}], input="...")
+    assert_supported(response, verifier="ensemble")  # fail_on="flagged" by default
+```
+
+It takes what `upheld.audit` takes, or a report you already have, and raises `CitationsNotSupported`, an `AssertionError` carrying the full report. The models load once per test session. In GitHub Actions:
+
+```yaml
+- uses: warun7/upheld@v0.6.0
+  with:
+    files: answers/**/*.md       # paths or globs, one per line
+    verifier: ensemble           # the default; lexical needs no models
+```
+
+The action audits each file with one set of loaded models, uploads an HTML report per answer, annotates each failing claim on its line, and writes a summary to the job page. Pin the verifier in both: `auto` picks one for the machine. Expect some false alarms on good answers (see [How good is it](#how-good-is-it)); `fail_on="source_missing"` is a gentle start that only catches dead and missing sources.
 
 ### From the command line and over HTTP
 
@@ -485,7 +509,8 @@ The labels in `labels-claude.jsonl` came from Claude subagents given `labeling-g
 - ~~PDF sources~~ done: read with pypdf, which made 9 of the 10 PDFs cited in the fresh benchmark readable. Next: OCR for scans
 - ~~Read archived copies of pages upheld can't read~~ done: a page that blocks upheld, times out, serves a block page or is dead is read from the Wayback Machine's newest copy, which cut the fresh benchmark's unverifiable citations from 142 (22%) to 50 (8%)
 - ~~Installable package and provider responses~~ done: `pip install upheld`, `upheld.audit()`, and OpenAI, Anthropic, Perplexity and Gemini responses read with their own citation data
-- ~~MCP server~~ done: `upheld mcp`, so Claude Code, Cursor, Codex and other agents check the citations in an answer before they show it. Next: a pytest helper and a GitHub Action
+- ~~MCP server~~ done: `upheld mcp`, so Claude Code, Cursor, Codex and other agents check the citations in an answer before they show it
+- ~~pytest helper and GitHub Action~~ done: `upheld.testing.assert_supported`, and `uses: warun7/upheld` with annotations, a job summary and HTML reports
 - ~~Shareable reports and CI exit codes~~ done: `--html` writes the report viewer as one offline HTML file, and `--fail-on` makes a flagged claim fail the command
 - ~~Web app~~ done: a static site in `web/` at [upheld.varunsg.com](https://upheld.varunsg.com), with two real reports to step through, the benchmarks and a setup guide. No playground: that needs a model server. Next: a browser extension
 
