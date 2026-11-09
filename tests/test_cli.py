@@ -14,10 +14,19 @@ REQUEST = {
 OFFLINE = ["--verifier", "lexical", "--retrieval", "bm25", "--no-fetch"]
 
 
+def runner() -> CliRunner:
+    # stdout and stderr apart, so a test can check that --json output stays clean. Click 8.2+ always keeps them
+    # apart and dropped mix_stderr; older Click mixes them unless told not to.
+    try:
+        return CliRunner(mix_stderr=False)
+    except TypeError:
+        return CliRunner()
+
+
 def run(tmp_path, *args):
     path = tmp_path / "answer.json"
     path.write_text(json.dumps(REQUEST))
-    return CliRunner().invoke(app, ["audit", str(path), *OFFLINE, *args])
+    return runner().invoke(app, ["audit", str(path), *OFFLINE, *args])
 
 
 def test_fail_on_exits_1_only_when_a_claim_has_a_listed_verdict(tmp_path):
@@ -27,7 +36,7 @@ def test_fail_on_exits_1_only_when_a_claim_has_a_listed_verdict(tmp_path):
 
     result = run(tmp_path, "--fail-on", "flagged")
     assert result.exit_code == 1
-    assert "1 of 3 claims failed (1 unsupported)" in result.output
+    assert "1 of 3 claims failed (1 unsupported)" in result.stderr
 
     result = run(tmp_path, "--fail-on", "unsupported, uncited", "--json")
     assert result.exit_code == 1
@@ -37,14 +46,14 @@ def test_fail_on_exits_1_only_when_a_claim_has_a_listed_verdict(tmp_path):
 
 def test_errors_exit_2_so_ci_can_tell_them_from_findings(tmp_path):
     result = run(tmp_path, "--fail-on", "supported")
-    assert result.exit_code == 2 and "isn't a verdict to fail on" in result.output
+    assert result.exit_code == 2 and "isn't a verdict to fail on" in result.stderr
     result = run(tmp_path, "--fail-on", "unsuported")
     assert result.exit_code == 2
 
     bad = tmp_path / "bad.json"
     bad.write_text("{not json")
-    assert CliRunner().invoke(app, ["audit", str(bad), *OFFLINE, "--fail-on", "flagged"]).exit_code == 2
-    assert CliRunner().invoke(app, ["audit", str(tmp_path / "missing.md"), *OFFLINE]).exit_code == 2
+    assert runner().invoke(app, ["audit", str(bad), *OFFLINE, "--fail-on", "flagged"]).exit_code == 2
+    assert runner().invoke(app, ["audit", str(tmp_path / "missing.md"), *OFFLINE]).exit_code == 2
     assert run(tmp_path, "--verifier", "nope").exit_code == 2
 
 
