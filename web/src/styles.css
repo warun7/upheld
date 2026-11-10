@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* The example reports in public/ are built pages: their class names are not sources for this stylesheet. */
+@source not "../public/examples";
 
 /*
   Theme tokens. Light paper is the default; dark applies only when the visitor picks it
