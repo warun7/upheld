@@ -217,6 +217,8 @@ curl -s localhost:8000/audit/auto -H 'content-type: application/json' -d @respon
 
 `POST /audit/{provider}` takes the response as its body, and the question as an optional `?question=` parameter, and returns the same report as `POST /audit`.
 
+Requests run side by side, but the Granite judge takes them in turn: llama.cpp can't share one model between two audits at once, so with `judge`, `ensemble+judge`, or `auto` where it picks the judge, a second audit fetches its pages while the first runs, then the two take turns on the judge. You don't need to set anything for this. `UPHELD_MAX_CONCURRENT` caps how many audits run at all, and the rest queue; it's unlimited by default, and the Docker image sets 1. The same goes for `Auditor`: one is safe to share between threads.
+
 ### From an AI agent, over MCP
 
 `upheld mcp` is an [MCP](https://modelcontextprotocol.io) server, so Claude Code, Cursor, Codex and other agents can check the citations in an answer they've drafted before they show it. It runs on your machine over stdio. With [uv](https://docs.astral.sh/uv/), run it once in a terminal first: the first run installs torch and the rest, which takes a few minutes, and clients give up on a server that slow to start.

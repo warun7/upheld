@@ -29,7 +29,8 @@ async def lifespan(app: FastAPI):
     _state["verifier"] = make_verifier(os.environ.get("UPHELD_VERIFIER", "auto"))
     _state["embedder"] = make_embedder(os.environ.get("UPHELD_RETRIEVAL", "auto"))
     # A public deployment can cap concurrent audits so requests queue instead of
-    # competing for one model on a small machine.
+    # competing for one model on a small machine. Safety doesn't need the cap: the
+    # judge, which can't share its model, takes calls one at a time on its own.
     limit = int(os.environ.get("UPHELD_MAX_CONCURRENT", "0"))
     _state["slots"] = asyncio.Semaphore(limit) if limit > 0 else None
     yield

@@ -414,7 +414,8 @@ curl -s localhost:8000/audit -H 'content-type: application/json' -d '{
       />
       <p>
         One request audits one answer, and takes about as long as the CLI would: roughly a second per claim per source on a laptop GPU, several times that on CPU.
-        Requests run side by side unless <C>UPHELD_MAX_CONCURRENT</C> caps them.
+        Requests run side by side unless <C>UPHELD_MAX_CONCURRENT</C> caps them, but the Granite judge takes them in turn: llama.cpp can't share one model
+        between two audits at once, so a second audit fetches its pages while the first runs, then the two take turns on the judge. You don't need to set anything for this.
       </p>
       <Note>
         The API fetches whatever URLs a request cites. It refuses private, loopback and cloud-metadata addresses, but it has no authentication or rate limit. Keep it

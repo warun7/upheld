@@ -1,6 +1,8 @@
+import asyncio
 import json
 from pathlib import Path
 
+import httpx
 from fastapi.testclient import TestClient
 
 from upheld import api, pipeline
@@ -28,6 +30,33 @@ def test_health_and_audit(monkeypatch):
         )
         assert res.status_code == 200
         assert [c["verdict"] for c in res.json()["claims"]] == ["supported", "unsupported"]
+
+
+def test_overlapping_audits_take_turns_with_the_judge(monkeypatch, fake_llama):
+    # With no UPHELD_MAX_CONCURRENT, two audits at once used to decode on one llama.cpp model from two
+    # threads: one got a 500, and three crashed the server.
+    monkeypatch.setenv("UPHELD_VERIFIER", "judge")
+    monkeypatch.setenv("UPHELD_RETRIEVAL", "bm25")
+    monkeypatch.delenv("UPHELD_MAX_CONCURRENT", raising=False)
+    request = {
+        "answer": "The Eiffel Tower is 330 metres tall [1]. It was completed in 1889 [1].",
+        "sources": [{"id": "1", "text": "The Eiffel Tower in Paris is 330 metres tall and was completed in 1889."}],
+    }
+
+    async def two_at_once() -> list[httpx.Response]:
+        async with api.lifespan(api.app):
+            transport = httpx.ASGITransport(app=api.app, raise_app_exceptions=False)
+            async with httpx.AsyncClient(transport=transport, base_url="http://upheld") as c:
+                return await asyncio.gather(c.post("/audit", json=request), c.post("/audit", json=request))
+
+    responses = asyncio.run(two_at_once())
+    assert [r.status_code for r in responses] == [200, 200]
+    for r in responses:
+        assert r.json()["verifier"].startswith("judge:")
+        assert [c["verdict"] for c in r.json()["claims"]] == ["supported", "supported"]
+    decodes = sorted(fake_llama.decodes)
+    assert len(decodes) == 4  # two claims from each audit
+    assert all(end <= next_start for (_, end, _), (next_start, _, _) in zip(decodes, decodes[1:]))
 
 
 def test_rejects_oversized_answer(monkeypatch):

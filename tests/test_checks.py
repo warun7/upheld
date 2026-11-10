@@ -112,6 +112,22 @@ def test_make_verifier_ignores_device_for_lexical():
         make_verifier("nope")
 
 
+def test_judge_reads_the_whole_prompt_again_after_a_failed_decode(fake_llama):
+    judge = make_verifier("judge")
+    answer = "The Eiffel Tower is 330 metres tall."
+    page = ["The Eiffel Tower in Paris is 330 metres tall."]
+    judge.check(answer, [(0, len(answer))], page)
+    prompt_tokens = fake_llama.decodes[0][2]
+
+    fake_llama.fail_next = True
+    with pytest.raises(RuntimeError, match="llama_decode"):
+        judge.check(answer, [(0, len(answer))], page)
+    # The cache may not hold what it says, so the next call reuses none of it.
+    [result] = judge.check(answer, [(0, len(answer))], page)
+    assert fake_llama.decodes[-1][2] == prompt_tokens
+    assert result.score >= judge.threshold
+
+
 def test_auto_picks_the_judge_only_when_it_can_run_well(monkeypatch):
     import importlib.util
     import sys

@@ -14,6 +14,7 @@ import math
 import os
 import re
 import sys
+import threading
 from dataclasses import dataclass, field
 from typing import Protocol
 
@@ -218,6 +219,11 @@ class GraniteJudgeVerifier:
     or CPU. Long evidence is split into ~1,500-word chunks and a claim scores
     its best chunk. Claims checked against the same chunk reuse its cached
     prompt, so only the claim is read again.
+
+    One llama.cpp model can't read two prompts at once: two overlapping calls
+    fail with a llama_decode error, and three can crash the process. So calls
+    take turns, and one judge is safe to share between threads, as the HTTP
+    API does.
     """
 
     top_k = 3
@@ -246,6 +252,7 @@ class GraniteJudgeVerifier:
         self.yes, self.no = (self.llm.tokenize(t.encode(), add_bos=False, special=False)[0] for t in (" yes", " no"))
         self.threshold = threshold
         self.name = f"judge:granite-guardian-3.3-8b@{threshold}"
+        self._lock = threading.Lock()
 
     def check(
         self, answer: str, claims: list[tuple[int, int]], passages: list[str], question: str | None = None
@@ -253,7 +260,9 @@ class GraniteJudgeVerifier:
         # The question is left out on purpose: shown it, the judge also weighs whether the claim
         # answers it, which cut its AUC on 300 AttributionBench dev rows from 0.85 to 0.76.
         chunks = _word_chunks(passages, self.CHUNK_WORDS)
-        return [SupportResult(round(max(self._grounded(chunk, answer[s:e]) for chunk in chunks), 3)) for s, e in claims]
+        # Held for the whole call, so another thread can't evict the chunks these claims share.
+        with self._lock:
+            return [SupportResult(round(max(self._grounded(chunk, answer[s:e]) for chunk in chunks), 3)) for s, e in claims]
 
     def _grounded(self, document: str, claim: str) -> float:
         prompt = self.tokenizer.apply_chat_template(
@@ -273,7 +282,13 @@ class GraniteJudgeVerifier:
         while keep < min(len(cached), len(tokens) - 1) and cached[keep] == tokens[keep]:
             keep += 1
         self.llm.n_tokens = keep
-        self.llm.eval(tokens[keep:])
+        try:
+            self.llm.eval(tokens[keep:])
+        except RuntimeError:
+            # A decode that fails partway can leave llama.cpp's cache out of step with the tokens it's recorded as
+            # having read. Start the next call from an empty cache rather than reuse a prefix that may not be there.
+            self.llm.reset()
+            raise
         logits = self.llama_cpp.llama_get_logits_ith(self.llm.ctx, -1)
         yes, no = logits[self.yes], logits[self.no]
         return 1 / (1 + math.exp(yes - no))
