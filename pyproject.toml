@@ -1,6 +1,6 @@
 [project]
 name = "upheld"
-version = "0.7.0"
+version = "0.7.1"
 description = "Check whether an AI answer's citations actually support its claims."
 readme = "README.md"
 license = "MIT"
